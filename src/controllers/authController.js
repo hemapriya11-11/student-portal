@@ -58,7 +58,10 @@ export const login = async (req, res) => {
     "1h"
     );
 
-    return res.status(200).send(token);
+    return res.status(200).json({
+        msg:"login success",
+        token:token
+    });
   } catch (error) {
     console.error(error);
 
