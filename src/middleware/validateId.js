@@ -1,17 +1,13 @@
-export const validateId = (req, res, next) => {
-  const { id } = req.params
+export const validateId = (schema) => {
+    return (req, res, next) => {
+        const { error } = schema.validate(req.body);
 
-  if (!id) {
-    return res.status(400).send(
-       "Student id is required"
-    )
-  }
+        if (error) {
+            return res
+                .status(400)
+                .send(error.details[0].message);
+        }
 
-  if (!Number.isInteger(Number(id)) || Number(id) <= 0) {
-    return res.status(400).send(
-      "Student id must be a positive integer"
-    )
-  }
-
-  next()
-}
+        next();
+    };
+};
