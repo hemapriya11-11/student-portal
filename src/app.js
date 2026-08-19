@@ -7,10 +7,10 @@ const app = express();
 
 app.use(express.json());
 
-
 app.use("/students", studentRoutes);
 
 app.use("/auth", routes);
+
 
 
 export default app;
