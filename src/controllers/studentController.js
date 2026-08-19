@@ -1,5 +1,4 @@
-import express from "express"
-import { pool } from "../config/db.js"
+import { pool } from "../config/db.js";
 
 export const createStudent = async (req, res) => {
   try {
