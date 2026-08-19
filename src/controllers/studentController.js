@@ -222,3 +222,4 @@ export const deleteStudent = async (req, res) => {
     });
   }
 };
+

@@ -111,8 +111,8 @@ export const resetPassword = async (req, res) => {
             10
         );
 
-    await pool.query(
-      `UPDATE users
+        await pool.query(
+            `UPDATE users
              SET password=?,
                  reset_token=NULL,
                  reset_token_expiry=NULL
