@@ -12,13 +12,13 @@ import {
   resetPassword,
 } from "../controllers/authController.js";
 import { verifyResetToken } from "../middleware/verifyresettoken.js";
-import { validateId } from "../middleware/validateId.js";
+import { validate } from "../middleware/validate.js";
 
 const router = express.Router();
 
 
-router.post("/signup", validateId(signupSchema), signup);
-router.post("/login", validateId(loginSchema), login);
-router.post("/forgotpassword", validateId(forgotPasswordSchema), forgotPassword);
-router.post("/resetpassword/:token", verifyResetToken,validateId(resetPasswordSchema),resetPassword);
+router.post("/signup", validate(signupSchema,"body"), signup);
+router.post("/login", validate(loginSchema,"body"), login);
+router.post("/forgotpassword", validate(forgotPasswordSchema,"body"), forgotPassword);
+router.post("/resetpassword/:token", verifyResetToken,validate(resetPasswordSchema,"body"),resetPassword);
 export default router;
