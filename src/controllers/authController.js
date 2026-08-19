@@ -53,12 +53,12 @@ export const login=async (req,res) =>{
 
         const currentuser =user[0]
 
-        if(currentuser.length===0){
+        if(user.length===0){
             return res.status(400).send("register first")
         }
         const passmatch=await bcrypt.compare(password,currentuser.password)
         if(!passmatch){
-            res.status(401).send("invalid credentials")
+            return res.status(401).send("invalid credentials")
         }
 
         const token=jwt.sign(
@@ -71,7 +71,8 @@ export const login=async (req,res) =>{
                 expiresIn:"1h"
             }
         );
-        return res.status(200).send("user login success")
+        return res.status(200).send(
+    `Login successful. Token: ${token}`)
 
 
     }
@@ -150,7 +151,12 @@ export const resetPassword = async (req, res) => {
             return res.status(400).send("token expired");
         }
 
-        jwt.verify(token, process.env.JWT_SECRET);
+       try {
+             jwt.verify(token, process.env.JWT_SECRET);
+       } catch {
+               return res.status(400).send("invalid or expired token");
+       }
+
 
         const hashedPass = await bcrypt.hash(password, 10);
 
