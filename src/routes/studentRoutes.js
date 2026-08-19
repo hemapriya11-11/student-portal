@@ -9,4 +9,5 @@ router.get("/:id", getStudentById)
 router.put("/:id",updateStudent)
 router.delete("/:id",deleteStudent)
 router.patch("/:id",patchStudent)
+
 export default router;
