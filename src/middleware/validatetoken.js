@@ -1,12 +1,24 @@
+import Jwt from "jsonwebtoken";
+
 export const verifytoken = (req, res, next) => {
-  const authheader = req.header.authorization;
+  const authheader = req.headers.authorization;
+
   if (!authheader) {
-    return res.status(400).send("token required");
+    return res.status(400).send("Token required");
   }
+
   const token = authheader.split(" ")[1];
+
   try {
-    Jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = Jwt.verify(
+      token,
+      process.env.JWT_SECRET
+    );
+
+    req.user = decoded;
+
+    next();
   } catch {
-    res.status(401).send("invalid token");
+    return res.status(401).send("Invalid token");
   }
 };

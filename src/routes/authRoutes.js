@@ -4,7 +4,7 @@ import {
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-} from "../middleware/authJoi.js";
+} from "../validations/authJoi.js";
 import {
   signup,
   login,
