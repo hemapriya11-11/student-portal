@@ -1,4 +1,5 @@
 import express from "express";
+
 import {
   createStudent,
   getStudent,
@@ -6,7 +7,16 @@ import {
   deleteStudent,
   patchStudent,
 } from "../controllers/studentController.js";
+
+import {
+  createMyStudent,
+  getMyStudent,
+  updateMyStudent,
+  patchMyStudent,
+} from "../controllers/studentProfileController.js";
+
 import { validate } from "../middleware/validate.js";
+
 import {
   createStudentSchema,
   studentIdSchema,
@@ -16,29 +26,29 @@ import {
 } from "../validations/studentValidation.js";
 
 import { verifytoken } from "../middleware/validatetoken.js";
+import { authorize } from "../middleware/authorize.js";
 
 const router = express.Router();
 
 
 
-router.post("/", validate(createStudentSchema, "body"), createStudent);
+router.get("/",verifytoken,authorize("admin", "staff"),validate(paginationSchema, "query"),getStudent);
+router.post("/",verifytoken,authorize("admin", "staff"),validate(createStudentSchema, "body"),createStudent);
 
-router.get("/", validate(paginationSchema, "query"), getStudent);
+router.put("/:id",verifytoken,authorize("admin", "staff"),validate(studentIdSchema, "params"),
+validate(updateStudentSchema, "body"),);
 
-router.put(
-  "/:id",
-  validate(studentIdSchema, "params"),
-  validate(updateStudentSchema, "body"),
-  updateStudent,
-);
+router.delete("/:id",verifytoken,authorize("admin"),validate(studentIdSchema, "params"),deleteStudent);
 
-router.delete("/:id", validate(studentIdSchema, "params"), deleteStudent);
+router.patch("/:id",verifytoken,authorize("admin", "staff"),validate(studentIdSchema, "params"),
+validate(patchStudentSchema, "body"),patchStudent);
 
-router.patch(
-  "/:id",
-  validate(studentIdSchema, "params"),
-  validate(patchStudentSchema, "body"),
-  patchStudent,
-);
+
+//student Routes
+
+router.post("/me",verifytoken,authorize("student"),validate(createStudentSchema, "body"),createMyStudent);
+router.get("/me",verifytoken,authorize("student"),getMyStudent);
+router.put("/me",verifytoken,authorize("student"),validate(updateStudentSchema, "body"),updateMyStudent);
+router.patch("/me",verifytoken,authorize("student"),validate(patchStudentSchema, "body"),patchMyStudent);
 
 export default router;

@@ -1,47 +1,39 @@
 import jwt from "jsonwebtoken";
-import { pool } from "../config/db.js";
+import  User  from "../models/user.js";
 
-export const verifyResetToken = async (
-    req,
-    res,
-    next
-) => {
+export const verifyResetToken = async (req, res, next) => {
+  try {
     const { token } = req.params;
 
-    const [users] = await pool.query(
-        "SELECT * FROM users WHERE reset_token=?",
-        [token]
-    );
+   
+    const user = await User.findOne({
+      where: {
+        reset_token: token,
+      },
+    });
 
-    if (users.length === 0) {
-        return res.status(400).send(
-            "Invalid token"
-        );
+    if (!user) {
+      return res.status(400).send("Invalid token");
     }
 
-    const user = users[0];
-
-    if (
-        new Date(user.reset_token_expiry) <
-        new Date()
-    ) {
-        return res.status(400).send(
-            "Token expired"
-        );
+    
+    if (new Date(user.reset_token_expiry) < new Date()) {
+      return res.status(400).send("Token expired");
     }
 
+  
     try {
-        jwt.verify(
-            token,
-            process.env.JWT_SECRET
-        );
+      jwt.verify(token, process.env.JWT_SECRET);
     } catch {
-        return res.status(400).send(
-            "Invalid token"
-        );
+      return res.status(400).send("Invalid token");
     }
 
+   
     req.user = user;
 
     next();
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send("Something went wrong");
+  }
 };

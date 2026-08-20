@@ -1,11 +1,12 @@
-import { pool } from "../config/db.js";
-import { Student } from "../models/studentModel.js";
+import { Op } from "sequelize";
+import Student from "../models/student.js";
 
 export const createStudent = async (req, res) => {
   try {
     const { name, personal_email, age, department } = req.body;
 
     const student = await Student.create({
+      user_id: req.user.id, 
       name,
       personal_email,
       age,
@@ -94,7 +95,6 @@ export const getStudent = async (req, res) => {
 export const updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
-
     const { name, personal_email, age, department } = req.body;
 
     const [updatedRows] = await Student.update(
@@ -105,10 +105,8 @@ export const updateStudent = async (req, res) => {
         department,
       },
       {
-        where: {
-          id,
-        },
-      },
+        where: { id },
+      }
     );
 
     if (updatedRows === 0) {
@@ -138,31 +136,17 @@ export const updateStudent = async (req, res) => {
 export const patchStudent = async (req, res) => {
   try {
     const { id } = req.params;
-
     const { name, personal_email, age, department } = req.body;
 
     const updates = {};
 
-    if (name !== undefined) {
-      updates.name = name;
-    }
-
-    if (personal_email !== undefined) {
-      updates.personal_email = personal_email;
-    }
-
-    if (age !== undefined) {
-      updates.age = age;
-    }
-
-    if (department !== undefined) {
-      updates.department = department;
-    }
+    if (name !== undefined) updates.name = name;
+    if (personal_email !== undefined) updates.personal_email = personal_email;
+    if (age !== undefined) updates.age = age;
+    if (department !== undefined) updates.department = department;
 
     const [updatedRows] = await Student.update(updates, {
-      where: {
-        id,
-      },
+      where: { id },
     });
 
     if (updatedRows === 0) {
@@ -194,9 +178,7 @@ export const deleteStudent = async (req, res) => {
     const { id } = req.params;
 
     const deletedRows = await Student.destroy({
-      where: {
-        id,
-      },
+      where: { id },
     });
 
     if (deletedRows === 0) {
@@ -216,3 +198,4 @@ export const deleteStudent = async (req, res) => {
     });
   }
 };
+

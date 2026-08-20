@@ -1,0 +1,164 @@
+import Student from "../models/student.js";
+
+export const createMyStudent = async (req, res) => {
+  try {
+    const { name, personal_email, age, department } = req.body;
+    const existingStudent = await Student.findOne({
+      where: {
+        user_id: req.user.id,
+      },
+    });
+
+    if (existingStudent) {
+      return res.status(409).json({
+        message: "Student profile already exists",
+      });
+    }
+
+    const student = await Student.create({
+      user_id: req.user.id,
+      name,
+      personal_email,
+      age,
+      department,
+    });
+
+    return res.status(201).json({
+      message: "Student profile created successfully",
+      studentId: student.id,
+    });
+  } catch (error) {
+    console.error(error);
+
+    if (error.name === "SequelizeUniqueConstraintError") {
+      return res.status(409).json({
+        message: "Email already exists",
+      });
+    }
+
+    return res.status(500).json({
+      message: "Failed to create student profile",
+    });
+  }
+};
+
+
+export const getMyStudent = async (req, res) => {
+  try {
+    const student = await Student.findOne({
+      where: {
+        user_id: req.user.id,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        message: "Student profile not found",
+      });
+    }
+
+    return res.status(200).json(student);
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Failed to fetch student profile",
+    });
+  }
+};
+
+
+export const updateMyStudent = async (req, res) => {
+  try {
+    const { name, personal_email, age, department } = req.body;
+
+    const [updatedRows] = await Student.update(
+      {
+        name,
+        personal_email,
+        age,
+        department,
+      },
+      {
+        where: {
+          user_id: req.user.id,
+        },
+      }
+    );
+
+    if (updatedRows === 0) {
+      return res.status(404).json({
+        message: "Student profile not found",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Student profile updated successfully",
+    });
+  } catch (error) {
+    console.error(error);
+
+    if (error.name === "SequelizeUniqueConstraintError") {
+      return res.status(409).json({
+        message: "Email already exists",
+      });
+    }
+
+    return res.status(500).json({
+      message: "Failed to update student profile",
+    });
+  }
+};
+
+
+export const patchMyStudent = async (req, res) => {
+  try {
+    const { name, personal_email, age, department } = req.body;
+
+    const updates = {};
+
+    if (name !== undefined) {
+      updates.name = name;
+    }
+
+    if (personal_email !== undefined) {
+      updates.personal_email = personal_email;
+    }
+
+    if (age !== undefined) {
+      updates.age = age;
+    }
+
+    if (department !== undefined) {
+      updates.department = department;
+    }
+
+    const [updatedRows] = await Student.update(updates, {
+      where: {
+        user_id: req.user.id,
+      },
+    });
+
+    if (updatedRows === 0) {
+      return res.status(404).json({
+        message: "Student profile not found",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Student profile updated successfully",
+    });
+  } catch (error) {
+    console.error(error);
+
+    if (error.name === "SequelizeUniqueConstraintError") {
+      return res.status(409).json({
+        message: "Email already exists",
+      });
+    }
+
+    return res.status(500).json({
+      message: "Failed to update student profile",
+    });
+  }
+};
