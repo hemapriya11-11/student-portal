@@ -1,12 +1,16 @@
 import express from "express";
+
 import {
   createStudent,
   getStudent,
   updateStudent,
   deleteStudent,
   patchStudent,
+  getMyStudent
 } from "../controllers/studentController.js";
+
 import { validate } from "../middleware/validate.js";
+
 import {
   createStudentSchema,
   studentIdSchema,
@@ -16,29 +20,56 @@ import {
 } from "../validations/studentValidation.js";
 
 import { verifytoken } from "../middleware/validatetoken.js";
+import { authorize } from "../middleware/authorize.js";
 
 const router = express.Router();
+router.get(
+  "/",
+  verifytoken,
+  authorize("admin", "staff"),
+  validate(paginationSchema, "query"),
+  getStudent,
+);
+router.post(
+  "/",
+  verifytoken,
+  authorize("admin", "staff"),
+  validate(createStudentSchema, "body"),
+  createStudent,
+);
 
-router.use(verifytoken);
-
-router.post("/", validate(createStudentSchema, "body"), createStudent);
-
-router.get("/", validate(paginationSchema, "query"), getStudent);
 
 router.put(
   "/:id",
+  verifytoken,
+  authorize("admin", "staff"),
   validate(studentIdSchema, "params"),
   validate(updateStudentSchema, "body"),
   updateStudent,
 );
 
-router.delete("/:id", validate(studentIdSchema, "params"), deleteStudent);
+router.delete(
+  "/:id",
+  verifytoken,
+  authorize("admin"),
+  validate(studentIdSchema, "params"),
+  deleteStudent,
+);
 
 router.patch(
   "/:id",
+  verifytoken,
+  authorize("admin", "staff"),
   validate(studentIdSchema, "params"),
   validate(patchStudentSchema, "body"),
   patchStudent,
 );
 
 export default router;
+
+router.get(
+  "/me",
+  verifytoken,
+  authorize("student"),
+  getMyStudent,
+);

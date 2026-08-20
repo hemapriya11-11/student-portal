@@ -1,27 +1,28 @@
 import bcrypt from "bcrypt";
 import { pool } from "../config/db.js";
 import {generatetoken} from "../utils/generatetoken.js"
+import User from "../models/user.js"
 
 
 export const signup = async (req, res) => {
   try {
     const { user_name, email, password } = req.body;
-
-    const [existingUser] = await pool.query(
-      "SELECT * FROM users WHERE email=?",
-      [email],
-    );
-
-    if (existingUser.length > 0) {
+const existingUser = await User.findOne({
+      where: {
+        email,
+      },
+    });
+    if (existingUser) {
       return res.status(400).send("User already exists");
     }
 
     const hashedPass = await bcrypt.hash(password, 10);
 
-    await pool.query(
-      "INSERT INTO users (user_name, email, password) VALUES (?, ?, ?)",
-      [user_name, email, hashedPass],
-    );
+    await User.create({
+      user_name,
+      email,
+      password:hashedPass,
+    });
 
     return res.status(201).send("User created successfully");
   } catch (error) {
@@ -35,33 +36,41 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const [users] = await pool.query("SELECT * FROM users WHERE email=?", [
-      email,
-    ]);
+    const users = await User.findOne({
+      where: {
+        email,
+      },
+    });
 
-    if (users.length === 0) {
+    if (!users) {
       return res.status(400).send("Register first");
     }
+    console.log("Entered password:", password);
+    console.log("Stored password:", users.password);
 
-    const currentUser = users[0];
-
-    const passwordMatch = await bcrypt.compare(password, currentUser.password);
+    const passwordMatch = await bcrypt.compare(
+      password,
+      users.password
+    );
 
     if (!passwordMatch) {
       return res.status(401).send("Invalid credentials");
     }
 
-    const token = generatetoken({
-        id:currentUser.id,
-        email:currentUser.email
-    },
-    "1h"
+    const token = generatetoken(
+      {
+        id: users.id,
+        email: users.email,
+        role: users.role,
+      },
+      "1h"
     );
 
     return res.status(200).json({
-        msg:"login success",
-        token:token
+      msg: "Login success",
+      token: token,
     });
+
   } catch (error) {
     console.error(error);
 
