@@ -2,8 +2,11 @@ import express from "express";
 import { createStudent,getStudent ,updateStudent,deleteStudent,patchStudent} from "../controllers/studentController.js";
 import { validate} from "../middleware/validate.js";
 import { createStudentSchema,studentIdSchema, updateStudentSchema, patchStudentSchema ,paginationSchema} from "../validations/studentValidation.js";
+import { verifytoken } from "../middleware/validatetoken.js";
 
 const router = express.Router();
+
+router.use(verifytoken)
 
 router.post("/",validate(createStudentSchema, "body"),createStudent);
 router.get("/",validate(paginationSchema, "query"),getStudent);
