@@ -19,7 +19,7 @@ import { verifytoken } from "../middleware/validatetoken.js";
 
 const router = express.Router();
 
-router.use(verifytoken);
+
 
 router.post("/", validate(createStudentSchema, "body"), createStudent);
 
