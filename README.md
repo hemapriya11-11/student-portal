@@ -4,7 +4,7 @@ A RESTful backend API for a Student Portal built using Node.js, Express.js, MySQ
 
 The project provides authentication, role-based access control, student management, validation, and password reset functionality.
 
-## 🚀 Features
+##  Features
 
 - User registration and login
 - JWT-based authentication
@@ -21,7 +21,7 @@ The project provides authentication, role-based access control, student manageme
 - Environment variable configuration
 - Nodemon for development
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 | Technology | Purpose |
 |------------|---------|
@@ -35,7 +35,7 @@ The project provides authentication, role-based access control, student manageme
 | dotenv | Environment variables |
 | Nodemon | Development server |
 
-## 📁 Project Structure
+##  Project Structure
 
 ```text
 student-portal/
