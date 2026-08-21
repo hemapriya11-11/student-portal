@@ -1,0 +1,22 @@
+export const MESSAGES = {
+  USER_ALREADY_EXISTS: "User already exists",
+  USER_NOT_FOUND: "User not found",
+  INVALID_CREDENTIALS: "Invalid credentials",
+  LOGIN_SUCCESS: "Login success",
+  USER_CREATED: "User created successfully",
+  REGISTER_FIRST: "Register first",
+  PASSWORD_RESET_SUCCESS: "Password reset successful",
+  SOMETHING_WENT_WRONG: "Something went wrong",
+  VALIDATION_FAILED: "Validation failed",
+  TOKEN_REQUIRED: "Token required",
+  INVALID_TOKEN_FORMAT: "Invalid token format",
+  INVALID_OR_EXPIRED_TOKEN: "Invalid or expired token",
+  ACCESS_DENIED:"Access denied",
+
+  STUDENT_CREATED: "Student created successfully",
+  STUDENT_NOT_FOUND: "Student not found",
+  STUDENT_UPDATED: "Student updated successfully",
+  STUDENT_DELETED: "Student deleted successfully",
+  EMAIL_ALREADY_EXISTS: "Email already exists",
+  FETCH_STUDENT_FAILED: "Failed to fetch students",
+};

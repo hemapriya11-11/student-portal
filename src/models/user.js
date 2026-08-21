@@ -36,11 +36,7 @@ const User = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true,
     },
-    user_id: {
-  type: DataTypes.INTEGER,
-  allowNull: false,
-  unique: true,
-},
+    
   },
   {
     tableName: "users",

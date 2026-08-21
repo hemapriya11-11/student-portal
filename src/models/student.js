@@ -30,6 +30,11 @@ const Student = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
     },
+    user_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      unique: true,
+    },
   },
   {
     tableName: "students",

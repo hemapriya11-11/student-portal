@@ -1,34 +1,52 @@
 import bcrypt from "bcrypt";
-import { pool } from "../config/db.js";
-import {generatetoken} from "../utils/generatetoken.js"
-import User from "../models/user.js"
 
+import { generatetoken } from "../utils/generatetoken.js";
+
+import User from "../models/user.js";
+
+import { STATUS_CODES } from "../constants/statusCodes.js";
+
+import { MESSAGES } from "../constants/messages.js";
+
+import { sendResetEmail } from "../utils/sendEmail.js";
 
 export const signup = async (req, res) => {
   try {
     const { user_name, email, password } = req.body;
-const existingUser = await User.findOne({
+
+    const existingUser = await User.findOne({
       where: {
         email,
       },
     });
+
     if (existingUser) {
-      return res.status(400).send("User already exists");
+      return res
+
+        .status(STATUS_CODES.BAD_REQUEST)
+
+        .send(MESSAGES.USER_ALREADY_EXISTS);
     }
 
     const hashedPass = await bcrypt.hash(password, 10);
 
     await User.create({
       user_name,
+
       email,
-      password:hashedPass,
+
+      password: hashedPass,
     });
 
-    return res.status(201).send("User created successfully");
+    return res.status(STATUS_CODES.CREATED).send(MESSAGES.USER_CREATED);
   } catch (error) {
     console.error(error);
 
-    return res.status(500).send("Something went wrong");
+    return res
+
+      .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
+
+      .send(MESSAGES.SOMETHING_WENT_WRONG);
   }
 };
 
@@ -43,37 +61,48 @@ export const login = async (req, res) => {
     });
 
     if (!users) {
-      return res.status(400).send("Register first");
-    }
-  
+      return res
 
-    const passwordMatch = await bcrypt.compare(
-      password,
-      users.password
-    );
+        .status(STATUS_CODES.BAD_REQUEST)
+
+        .send(MESSAGES.REGISTER_FIRST);
+    }
+
+    const passwordMatch = await bcrypt.compare(password, users.password);
 
     if (!passwordMatch) {
-      return res.status(401).send("Invalid credentials");
+      return res
+
+        .status(STATUS_CODES.UNAUTHORIZED)
+
+        .send(MESSAGES.INVALID_CREDENTIALS);
     }
 
     const token = generatetoken(
       {
         id: users.id,
+
         email: users.email,
+
         role: users.role,
       },
-      "1h"
+
+      "1h",
     );
 
-    return res.status(200).json({
-      msg: "Login success",
+    return res.status(STATUS_CODES.OK).json({
+      msg: MESSAGES.LOGIN_SUCCESS,
+
       token: token,
     });
-
   } catch (error) {
     console.error(error);
 
-    return res.status(500).send("Something went wrong");
+    return res
+
+      .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
+
+      .send(MESSAGES.SOMETHING_WENT_WRONG);
   }
 };
 
@@ -81,61 +110,88 @@ export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
-    const [users] = await pool.query("SELECT * FROM users WHERE email=?", [
-      email,
-    ]);
+    const user = await User.findOne({
+      where: { email },
+    });
 
-    if (users.length === 0) {
-      return res.status(404).send("User not found");
+    if (!user) {
+      return res
+
+        .status(STATUS_CODES.NOT_FOUND)
+
+        .send(MESSAGES.USER_NOT_FOUND);
     }
 
-    const user = users[0];
+    const token = generatetoken(
+      {
+        email: user.email,
+      },
 
-    const token = generatetoken({
-        email:user.email
-    },"15m")
-    
+      "15m",
+    );
 
     const expiry = new Date(Date.now() + 15 * 60 * 1000);
 
-    await pool.query(
-      "UPDATE users SET reset_token=?, reset_token_expiry=? WHERE id=?",
-      [token, expiry, user.id],
+    await User.update(
+      {
+        reset_token: token,
+
+        reset_token_expiry: expiry,
+      },
+
+      {
+        where: { id: user.id },
+      },
     );
 
-    return res.status(200).send(token);
+    await sendResetEmail(user.email, token);
+
+    return res
+      .status(STATUS_CODES.OK)
+      .send("Password reset link sent to your email");
   } catch (error) {
     console.error(error);
 
-    return res.status(500).send("Something went wrong");
+    return res
+
+      .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
+
+      .send(MESSAGES.SOMETHING_WENT_WRONG);
   }
 };
+
 export const resetPassword = async (req, res) => {
-    try {
-        const { password } = req.body;
+  try {
+    const { password } = req.body;
 
-        const hashedPass = await bcrypt.hash(
-            password,
-            10
-        );
+    const hashedPass = await bcrypt.hash(password, 10);
 
-        await pool.query(
-            `UPDATE users
-             SET password=?,
-                 reset_token=NULL,
-                 reset_token_expiry=NULL
-             WHERE id=?`,
-            [hashedPass, req.user.id]
-        );
+    await User.update(
+      {
+        password: hashedPass,
 
-        return res
-            .status(200)
-            .send("Password reset successful");
-    } catch (error) {
-        console.error(error);
+        reset_token: null,
 
-        return res
-            .status(500)
-            .send("Something went wrong");
-    }
+        reset_token_expiry: null,
+      },
+
+      {
+        where: { id: req.user.id },
+      },
+    );
+
+    return res
+
+      .status(STATUS_CODES.OK)
+
+      .send(MESSAGES.PASSWORD_RESET_SUCCESS);
+  } catch (error) {
+    console.error(error);
+
+    return res
+
+      .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
+
+      .send(MESSAGES.SOMETHING_WENT_WRONG);
+  }
 };

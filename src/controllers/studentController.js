@@ -1,35 +1,42 @@
+import { Op } from "sequelize";
+
 import Student from "../models/student.js";
+
+import { STATUS_CODES } from "../constants/statusCodes.js";
+
+import { MESSAGES } from "../constants/messages.js";
 
 export const createStudent = async (req, res) => {
   try {
     const { name, personal_email, age, department } = req.body;
 
     const student = await Student.create({
+      user_id: req.user.id,
       name,
       personal_email,
       age,
       department,
     });
 
-    return res.status(201).json({
-      message: "Student created successfully",
+    return res.status(STATUS_CODES.CREATED).json({
+      message: MESSAGES.STUDENT_CREATED,
+
       studentId: student.id,
     });
   } catch (error) {
     console.error(error);
 
     if (error.name === "SequelizeUniqueConstraintError") {
-      return res.status(409).json({
-        message: "Email already exists",
+      return res.status(STATUS_CODES.CONFLICT).json({
+        message: MESSAGES.EMAIL_ALREADY_EXISTS,
       });
     }
 
-    return res.status(500).json({
-      message: "Failed to create student",
+    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      message: MESSAGES.SOMETHING_WENT_WRONG,
     });
   }
 };
-
 
 export const getStudent = async (req, res) => {
   try {
@@ -77,26 +84,26 @@ export const getStudent = async (req, res) => {
       offset,
     });
 
-    return res.status(200).json({
+    return res.status(STATUS_CODES.OK).json({
       page: Number(page),
+
       limit: Number(limit),
+
       students,
     });
   } catch (error) {
     console.error(error);
 
-    return res.status(500).json({
-      message: "Failed to fetch students",
+    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      message: MESSAGES.SOMETHING_WENT_WRONG,
     });
   }
 };
-
 
 export const updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, personal_email, age, department } = req.body;
-
     const [updatedRows] = await Student.update(
       {
         name,
@@ -104,88 +111,75 @@ export const updateStudent = async (req, res) => {
         age,
         department,
       },
+
       {
         where: { id },
       },
     );
 
     if (updatedRows === 0) {
-      return res.status(404).json({
-        message: "Student not found",
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        message: MESSAGES.STUDENT_NOT_FOUND,
       });
     }
 
-    return res.status(200).json({
-      message: `Student with ID ${id} updated successfully`,
+    return res.status(STATUS_CODES.OK).json({
+      message: MESSAGES.STUDENT_UPDATED,
     });
   } catch (error) {
     console.error(error);
 
     if (error.name === "SequelizeUniqueConstraintError") {
-      return res.status(409).json({
-        message: "Email already exists",
+      return res.status(STATUS_CODES.CONFLICT).json({
+        message: MESSAGES.EMAIL_ALREADY_EXISTS,
       });
     }
 
-    return res.status(500).json({
-      message: "Failed to update student",
+    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      message: MESSAGES.SOMETHING_WENT_WRONG,
     });
   }
 };
 
-
 export const patchStudent = async (req, res) => {
   try {
     const { id } = req.params;
-
     const { name, personal_email, age, department } = req.body;
-
     const updates = {};
 
-    if (name !== undefined) {
-      updates.name = name;
-    }
+    if (name !== undefined) updates.name = name;
 
-    if (personal_email !== undefined) {
-      updates.personal_email = personal_email;
-    }
+    if (personal_email !== undefined) updates.personal_email = personal_email;
 
-    if (age !== undefined) {
-      updates.age = age;
-    }
+    if (age !== undefined) updates.age = age;
 
-    if (department !== undefined) {
-      updates.department = department;
-    }
+    if (department !== undefined) updates.department = department;
 
     const [updatedRows] = await Student.update(updates, {
       where: { id },
     });
 
     if (updatedRows === 0) {
-      return res.status(404).json({
-        message: "Student not found",
-      });
+      return res
+        .status(STATUS_CODES.NOT_FOUND)
+        .json(MESSAGES.STUDENT_NOT_FOUND);
     }
 
-    return res.status(200).json({
-      message: "Student updated successfully",
-    });
+    return res.status(STATUS_CODES.OK).json(MESSAGES.STUDENT_UPDATED);
   } catch (error) {
     console.error(error);
 
     if (error.name === "SequelizeUniqueConstraintError") {
-      return res.status(409).json({
-        message: "Email already exists",
-      });
+      return res
+        .status(STATUS_CODES.CONFLICT)
+        .json(MESSAGES.EMAIL_ALREADY_EXISTS);
     }
 
-    return res.status(500).json({
-      message: "Failed to update student",
-    });
+    return res
+      .status(STATUS_CODES.BAD_REQUEST)
+      .json(MESSAGES.SOMETHING_WENT_WRONG);
   }
 };
-
 
 export const deleteStudent = async (req, res) => {
   try {
@@ -196,38 +190,17 @@ export const deleteStudent = async (req, res) => {
     });
 
     if (deletedRows === 0) {
-      return res.status(404).json({
-        message: "Student not found",
-      });
+      return res
+        .status(STATUS_CODES.NOT_FOUND)
+        .json(MESSAGES.STUDENT_NOT_FOUND);
     }
 
-    return res.status(200).json({
-      message: "Student deleted successfully",
-    });
+    return res.status(STATUS_CODES.OK).json(MESSAGES.STUDENT_DELETED);
   } catch (error) {
     console.error(error);
 
-    return res.status(500).json({
-      message: "Failed to delete student",
-    });
-  }
-};
-export const getMyStudent = async (req, res) => {
-  try {
-    const student = await Student.findOne({
-      where: {
-        user_id: req.user.id,
-      },
-    });
-
-    if (!student) {
-      return res.status(404).send("Student not found");
-    }
-
-    return res.status(200).json(student);
-  } catch (error) {
-    console.error(error);
-
-    return res.status(500).send("Failed to fetch student");
+    return res
+      .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
+      .json(MESSAGES.SOMETHING_WENT_WRONG);
   }
 };
