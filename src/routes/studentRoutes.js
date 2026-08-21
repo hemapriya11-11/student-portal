@@ -45,7 +45,6 @@ validate(patchStudentSchema, "body"),patchStudent);
 
 
 //student Routes
-
 router.post("/me",verifytoken,authorize("student"),validate(createStudentSchema, "body"),createMyStudent);
 router.get("/me",verifytoken,authorize("student"),getMyStudent);
 router.put("/me",verifytoken,authorize("student"),validate(updateStudentSchema, "body"),updateMyStudent);
