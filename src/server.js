@@ -2,16 +2,14 @@ import dotenv from "dotenv";
 import app from "./app.js";
 import { pool } from "./config/db.js";
 import sequelize from "./config/sequelize.js";
-import "./models/User.js";
+import "./models/user.js";
 
 dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 
 try {
-  await pool.query("SELECT 1");
-  console.log("MySQL connected");//because we r usin it still
-
+  
   await sequelize.authenticate();
   console.log("Sequelize connected");
 

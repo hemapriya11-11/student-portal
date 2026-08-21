@@ -45,8 +45,7 @@ export const login = async (req, res) => {
     if (!users) {
       return res.status(400).send("Register first");
     }
-    console.log("Entered password:", password);
-    console.log("Stored password:", users.password);
+  
 
     const passwordMatch = await bcrypt.compare(
       password,
