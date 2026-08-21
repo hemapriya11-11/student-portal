@@ -36,7 +36,7 @@ router.get("/",verifytoken,authorize("admin", "staff"),validate(paginationSchema
 router.post("/",verifytoken,authorize("admin", "staff"),validate(createStudentSchema, "body"),createStudent);
 
 router.put("/:id",verifytoken,authorize("admin", "staff"),validate(studentIdSchema, "params"),
-validate(updateStudentSchema, "body"),);
+validate(updateStudentSchema, "body"),updateStudent);
 
 router.delete("/:id",verifytoken,authorize("admin"),validate(studentIdSchema, "params"),deleteStudent);
 
