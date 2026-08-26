@@ -78,22 +78,33 @@ export const login = async (req, res) => {
         .send(MESSAGES.INVALID_CREDENTIALS);
     }
 
-    const token = generatetoken(
+    const accessToken = generatetoken(
       {
         id: users.id,
-
         email: users.email,
-
         role: users.role,
       },
-
-      "1h",
+      "15m",
+      process.env.ACCESS_TOKEN_SECRET,
     );
+    const refreshToken = generatetoken(
+      {
+        id: users.id,
+      },
+      "7d",
+      process.env.REFRESH_TOKEN_SECRET,
+    );
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
     return res.status(STATUS_CODES.OK).json({
       msg: MESSAGES.LOGIN_SUCCESS,
-
-      token: token,
+      token: accessToken,
     });
   } catch (error) {
     console.error(error);

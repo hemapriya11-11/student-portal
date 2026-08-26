@@ -10,6 +10,7 @@ The project provides authentication, role-based access control, student manageme
 - JWT-based authentication
 - Password hashing using bcrypt
 - Forgot password and reset password functionality
+- Password reset emails via Nodemailer (`sendEmail.js`)
 - Role-Based Access Control (RBAC)
 - Admin, Staff/Teacher, and Student roles
 - Student CRUD operations
@@ -31,6 +32,7 @@ The project provides authentication, role-based access control, student manageme
 | Sequelize | ORM |
 | JWT | Authentication |
 | bcrypt | Password hashing |
+| Nodemailer | Sending password reset emails |
 | Joi | Request validation |
 | dotenv | Environment variables |
 | Nodemon | Development server |
@@ -69,7 +71,8 @@ student-portal/
 │   │   └── studentRoutes.js
 │   │
 │   ├── utils/
-│   │   └── generatetoken.js
+│   │   ├── generatetoken.js
+│   │   └── sendEmail.js
 │   │
 │   ├── validations/
 │   │   ├── authJoi.js
@@ -81,4 +84,18 @@ student-portal/
 ├── .env
 ├── .gitignore
 ├── package.json
-└── package-lock.json
+├── package-lock.json
+└── README.md
+```
+
+## Email Configuration
+
+The forgot password flow sends a reset email using Nodemailer through `src/utils/sendEmail.js`.
+
+Add the following values to your `.env` file:
+
+```env
+EMAIL_USER=your-gmail-address
+EMAIL_PASS=your-app-password
+RESET_PASSWORD_URL=http://localhost:3000
+```

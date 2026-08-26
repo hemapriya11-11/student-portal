@@ -21,12 +21,14 @@
   "homepage": "https://github.com/hemapriya11-11/student-portal#readme",
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "joi": "^18.2.4",
     "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.23.3",
     "nodemailer": "^9.0.5",
+    "redis": "^6.2.1",
     "sequelize": "^6.37.8"
   },
   "devDependencies": {

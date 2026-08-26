@@ -20,7 +20,10 @@ export const verifytoken = (req, res, next) => {
   }
 
   try {
-    const decoded = Jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = Jwt.verify(
+  token,
+  process.env.ACCESS_TOKEN_SECRET
+);
 
     req.user = decoded;
     next();

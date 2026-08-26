@@ -6,6 +6,8 @@ import { STATUS_CODES } from "../constants/statusCodes.js";
 
 import { MESSAGES } from "../constants/messages.js";
 
+import redisClient from "../config/redis.js";
+
 export const createStudent = async (req, res) => {
   try {
     const { name, personal_email, age, department } = req.body;
@@ -50,6 +52,16 @@ export const getStudent = async (req, res) => {
       limit = 10,
     } = req.query;
 
+    const cacheKey = `students:${JSON.stringify(req.query)}`;
+    const cachedStudents = await redisClient.get(cacheKey);
+
+    if (cachedStudents) {
+      console.log("CACHE HIT");
+
+      return res.status(STATUS_CODES.OK).json(JSON.parse(cachedStudents));
+    }
+    console.log("CACHE MISS");
+
     const where = {};
 
     if (id) {
@@ -84,13 +96,23 @@ export const getStudent = async (req, res) => {
       offset,
     });
 
-    return res.status(STATUS_CODES.OK).json({
+    const response = {
       page: Number(page),
-
       limit: Number(limit),
-
       students,
-    });
+    };
+
+    
+    await redisClient.set(
+      cacheKey,
+      JSON.stringify(response),
+      {
+        EX: 60,
+      }
+    );
+
+    return res.status(STATUS_CODES.OK).json(response);
+
   } catch (error) {
     console.error(error);
 
@@ -122,10 +144,23 @@ export const updateStudent = async (req, res) => {
         message: MESSAGES.STUDENT_NOT_FOUND,
       });
     }
+    const keys = [];
+
+    for await (const key of redisClient.scanIterator({
+      MATCH: "students:*",
+    })) {
+      keys.push(key);
+    }
+
+    if (keys.length > 0) {
+      await redisClient.del(keys);
+    }
 
     return res.status(STATUS_CODES.OK).json({
       message: MESSAGES.STUDENT_UPDATED,
     });
+
+    
   } catch (error) {
     console.error(error);
 
@@ -165,7 +200,22 @@ export const patchStudent = async (req, res) => {
         .json(MESSAGES.STUDENT_NOT_FOUND);
     }
 
-    return res.status(STATUS_CODES.OK).json(MESSAGES.STUDENT_UPDATED);
+     const keys = [];
+
+    for await (const key of redisClient.scanIterator({
+      MATCH: "students:*",
+    })) {
+      keys.push(key);
+    }
+
+    if (keys.length > 0) {
+      await redisClient.del(keys);
+    }
+
+    return res
+      .status(STATUS_CODES.OK)
+      .json(MESSAGES.STUDENT_UPDATED);
+
   } catch (error) {
     console.error(error);
 
@@ -195,7 +245,21 @@ export const deleteStudent = async (req, res) => {
         .json(MESSAGES.STUDENT_NOT_FOUND);
     }
 
-    return res.status(STATUS_CODES.OK).json(MESSAGES.STUDENT_DELETED);
+    const keys = [];
+
+    for await (const key of redisClient.scanIterator({
+      MATCH: "students:*",
+    })) {
+      keys.push(key);
+    }
+
+    if (keys.length > 0) {
+      await redisClient.del(keys);
+    }
+
+    return res
+      .status(STATUS_CODES.OK)
+      .json(MESSAGES.STUDENT_DELETED);
   } catch (error) {
     console.error(error);
 
