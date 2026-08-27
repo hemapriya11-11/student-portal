@@ -1,27 +1,29 @@
 import dotenv from "dotenv";
+
 import app from "./app.js";
 import sequelize from "./config/sequelize.js";
 import { connectRedis } from "./config/redis.js";
 
 dotenv.config();
 
-const PORT = process.env.PORT;
+const PORT = process.env.PORT ;
 
-try {
-  await sequelize.authenticate();
+const startServer = async () => { 
+  try {
+    await sequelize.authenticate();
 
-  console.log("Sequelize connected");
+    await sequelize.sync();
 
-  await sequelize.sync();
+    console.log("Sequelize models synced");
 
-  console.log("Sequelize models synced");
+    await connectRedis();
 
-  await connectRedis();
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error("Server startup failed:", error);
+  }
+};
 
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
-
-} catch (error) {
-  console.error("Server startup failed:", error);
-}
+startServer();

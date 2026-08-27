@@ -18,6 +18,8 @@ The project provides authentication, role-based access control, student manageme
 - Pagination and filtering
 - Joi request validation
 - Sequelize ORM with MySQL
+- Redis caching support
+- Centralized error handling with custom error class
 - Centralized HTTP status codes and response messages
 - Environment variable configuration
 - Nodemon for development
@@ -33,6 +35,7 @@ The project provides authentication, role-based access control, student manageme
 | JWT | Authentication |
 | bcrypt | Password hashing |
 | Nodemailer | Sending password reset emails |
+| Redis | Caching and session management |
 | Joi | Request validation |
 | dotenv | Environment variables |
 | Nodemon | Development server |
@@ -45,7 +48,8 @@ student-portal/
 ├── src/
 │   │
 │   ├── config/
-│   │   └── sequelize.js
+│   │   ├── sequelize.js
+│   │   └── redis.js
 │   │
 │   ├── constants/
 │   │   ├── statusCodes.js
@@ -60,7 +64,8 @@ student-portal/
 │   │   ├── authorize.js
 │   │   ├── validatetoken.js
 │   │   ├── verifyresettoken.js
-│   │   └── validate.js
+│   │   ├── validate.js
+│   │   └── errorHandler.js
 │   │
 │   ├── models/
 │   │   ├── user.js
@@ -72,7 +77,8 @@ student-portal/
 │   │
 │   ├── utils/
 │   │   ├── generatetoken.js
-│   │   └── sendEmail.js
+│   │   ├── sendEmail.js
+│   │   └── appError.js
 │   │
 │   ├── validations/
 │   │   ├── authJoi.js
@@ -98,4 +104,17 @@ Add the following values to your `.env` file:
 EMAIL_USER=your-gmail-address
 EMAIL_PASS=your-app-password
 RESET_PASSWORD_URL=http://localhost:3000
+REDIS_URL=redis://localhost:6379
 ```
+
+## Error Handling
+
+The application uses a centralized error handling system with:
+
+- **AppError**: Custom error class in `src/utils/appError.js` for creating operational errors with status codes
+- **errorHandler**: Middleware in `src/middleware/errorHandler.js` for catching and formatting errors
+
+## Redis Configuration
+
+Redis is configured in `src/config/redis.js` for caching purposes. Ensure Redis is running and the `REDIS_URL` environment variable is set correctly.
+

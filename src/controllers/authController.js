@@ -1,208 +1,117 @@
-import bcrypt from "bcrypt";
-
-import { generatetoken } from "../utils/generatetoken.js";
-
-import User from "../models/user.js";
+import {
+  signupService,
+  loginService,
+  forgotPasswordService,
+  resetPasswordService,
+  refreshTokenService,
+  logoutService,
+} from "../services/authService.js";
+import dotenv from "dotenv"
 
 import { STATUS_CODES } from "../constants/statusCodes.js";
-
 import { MESSAGES } from "../constants/messages.js";
+dotenv.config();
 
-import { sendResetEmail } from "../utils/sendEmail.js";
 
-export const signup = async (req, res) => {
+export const signup = async (req, res, next) => {
   try {
-    const { user_name, email, password } = req.body;
-
-    const existingUser = await User.findOne({
-      where: {
-        email,
-      },
-    });
-
-    if (existingUser) {
-      return res
-
-        .status(STATUS_CODES.BAD_REQUEST)
-
-        .send(MESSAGES.USER_ALREADY_EXISTS);
-    }
-
-    const hashedPass = await bcrypt.hash(password, 10);
-
-    await User.create({
-      user_name,
-
-      email,
-
-      password: hashedPass,
-    });
-
-    return res.status(STATUS_CODES.CREATED).send(MESSAGES.USER_CREATED);
-  } catch (error) {
-    console.error(error);
+    await signupService(req.body);
 
     return res
+      .status(STATUS_CODES.CREATED)
+      .send(MESSAGES.USER_CREATED);
 
-      .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
-
-      .send(MESSAGES.SOMETHING_WENT_WRONG);
+  } catch (error) {
+    next(error);
   }
 };
 
-export const login = async (req, res) => {
+
+export const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
-
-    const users = await User.findOne({
-      where: {
-        email,
-      },
-    });
-
-    if (!users) {
-      return res
-
-        .status(STATUS_CODES.BAD_REQUEST)
-
-        .send(MESSAGES.REGISTER_FIRST);
-    }
-
-    const passwordMatch = await bcrypt.compare(password, users.password);
-
-    if (!passwordMatch) {
-      return res
-
-        .status(STATUS_CODES.UNAUTHORIZED)
-
-        .send(MESSAGES.INVALID_CREDENTIALS);
-    }
-
-    const accessToken = generatetoken(
-      {
-        id: users.id,
-        email: users.email,
-        role: users.role,
-      },
-      "15m",
-      process.env.ACCESS_TOKEN_SECRET,
-    );
-    const refreshToken = generatetoken(
-      {
-        id: users.id,
-      },
-      "7d",
-      process.env.REFRESH_TOKEN_SECRET,
-    );
+    const { accessToken, refreshToken } =
+      await loginService(req.body);
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    return res.status(STATUS_CODES.OK).json({
-      msg: MESSAGES.LOGIN_SUCCESS,
-      token: accessToken,
-    });
-  } catch (error) {
-    console.error(error);
-
     return res
+      .status(STATUS_CODES.OK)
+      .json({
+        msg: MESSAGES.LOGIN_SUCCESS,
+        token: accessToken,
+      });
 
-      .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
-
-      .send(MESSAGES.SOMETHING_WENT_WRONG);
+  } catch (error) {
+    next(error);
   }
 };
 
-export const forgotPassword = async (req, res) => {
+
+export const forgotPassword = async (req, res, next) => {
   try {
-    const { email } = req.body;
-
-    const user = await User.findOne({
-      where: { email },
-    });
-
-    if (!user) {
-      return res
-
-        .status(STATUS_CODES.NOT_FOUND)
-
-        .send(MESSAGES.USER_NOT_FOUND);
-    }
-
-    const token = generatetoken(
-      {
-        email: user.email,
-      },
-
-      "15m",
-    );
-
-    const expiry = new Date(Date.now() + 15 * 60 * 1000);
-
-    await User.update(
-      {
-        reset_token: token,
-
-        reset_token_expiry: expiry,
-      },
-
-      {
-        where: { id: user.id },
-      },
-    );
-
-    await sendResetEmail(user.email, token);
+    await forgotPasswordService(req.body);
 
     return res
       .status(STATUS_CODES.OK)
       .send("Password reset link sent to your email");
+
   } catch (error) {
-    console.error(error);
-
-    return res
-
-      .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
-
-      .send(MESSAGES.SOMETHING_WENT_WRONG);
+    next(error);
   }
 };
 
-export const resetPassword = async (req, res) => {
+
+export const resetPassword = async (req, res, next) => {
   try {
-    const { password } = req.body;
-
-    const hashedPass = await bcrypt.hash(password, 10);
-
-    await User.update(
-      {
-        password: hashedPass,
-
-        reset_token: null,
-
-        reset_token_expiry: null,
-      },
-
-      {
-        where: { id: req.user.id },
-      },
-    );
+    await resetPasswordService({
+      password: req.body.password,
+      userId: req.user.id,
+    });
 
     return res
-
       .status(STATUS_CODES.OK)
-
       .send(MESSAGES.PASSWORD_RESET_SUCCESS);
+
   } catch (error) {
-    console.error(error);
+    next(error);
+  }
+};
+export const refreshToken = async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+
+    const accessToken = await refreshTokenService(refreshToken);
+
+    return res.status(STATUS_CODES.OK).json({
+      token: accessToken,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
+export const logout = async (req, res, next) => {
+  try {
+    await logoutService(req.user);
+
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    });
 
     return res
+      .status(STATUS_CODES.OK)
+      .send("Logout successful");
 
-      .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
-
-      .send(MESSAGES.SOMETHING_WENT_WRONG);
+  } catch (error) {
+    next(error);
   }
 };

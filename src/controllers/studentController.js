@@ -1,270 +1,91 @@
-import { Op } from "sequelize";
-
-import Student from "../models/student.js";
+import {
+  createStudentService,
+  getStudentService,
+  updateStudentService,
+  patchStudentService,
+  deleteStudentService,
+} from "../services/studentService.js";
 
 import { STATUS_CODES } from "../constants/statusCodes.js";
 
 import { MESSAGES } from "../constants/messages.js";
 
-import redisClient from "../config/redis.js";
-
-export const createStudent = async (req, res) => {
+export const createStudent = async (req, res, next) => {
   try {
-    const { name, personal_email, age, department } = req.body;
-
-    const student = await Student.create({
-      user_id: req.user.id,
-      name,
-      personal_email,
-      age,
-      department,
+    const student = await createStudentService({
+      userId: req.user.id,
+      ...req.body,
     });
 
-    return res.status(STATUS_CODES.CREATED).json({
-      message: MESSAGES.STUDENT_CREATED,
-
-      studentId: student.id,
-    });
-  } catch (error) {
-    console.error(error);
-
-    if (error.name === "SequelizeUniqueConstraintError") {
-      return res.status(STATUS_CODES.CONFLICT).json({
-        message: MESSAGES.EMAIL_ALREADY_EXISTS,
+    return res
+      .status(STATUS_CODES.CREATED)
+      .json({
+        message: MESSAGES.STUDENT_CREATED,
+        studentId: student.id,
       });
-    }
-
-    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
-      message: MESSAGES.SOMETHING_WENT_WRONG,
-    });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const getStudent = async (req, res) => {
+export const getStudent = async (req, res, next) => {
   try {
-    const {
-      id,
-      name,
-      age,
-      department,
-      personal_email,
-      page = 1,
-      limit = 10,
-    } = req.query;
-
-    const cacheKey = `students:${JSON.stringify(req.query)}`;
-    const cachedStudents = await redisClient.get(cacheKey);
-
-    if (cachedStudents) {
-      console.log("CACHE HIT");
-
-      return res.status(STATUS_CODES.OK).json(JSON.parse(cachedStudents));
-    }
-    console.log("CACHE MISS");
-
-    const where = {};
-
-    if (id) {
-      where.id = id;
-    }
-
-    if (name) {
-      where.name = {
-        [Op.like]: `%${name}%`,
-      };
-    }
-
-    if (age) {
-      where.age = age;
-    }
-
-    if (department) {
-      where.department = {
-        [Op.like]: `%${department}%`,
-      };
-    }
-
-    if (personal_email) {
-      where.personal_email = personal_email;
-    }
-
-    const offset = (Number(page) - 1) * Number(limit);
-
-    const students = await Student.findAll({
-      where,
-      limit: Number(limit),
-      offset,
-    });
-
-    const response = {
-      page: Number(page),
-      limit: Number(limit),
-      students,
-    };
-
-    
-    await redisClient.set(
-      cacheKey,
-      JSON.stringify(response),
-      {
-        EX: 60,
-      }
+    const students = await getStudentService(
+      req.query
     );
 
-    return res.status(STATUS_CODES.OK).json(response);
-
+    return res
+      .status(STATUS_CODES.OK)
+      .json(students);
   } catch (error) {
-    console.error(error);
-
-    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
-      message: MESSAGES.SOMETHING_WENT_WRONG,
-    });
+    next(error);
   }
 };
 
-export const updateStudent = async (req, res) => {
+export const updateStudent = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const { name, personal_email, age, department } = req.body;
-    const [updatedRows] = await Student.update(
-      {
-        name,
-        personal_email,
-        age,
-        department,
-      },
-
-      {
-        where: { id },
-      },
-    );
-
-    if (updatedRows === 0) {
-      return res.status(STATUS_CODES.NOT_FOUND).json({
-        message: MESSAGES.STUDENT_NOT_FOUND,
-      });
-    }
-    const keys = [];
-
-    for await (const key of redisClient.scanIterator({
-      MATCH: "students:*",
-    })) {
-      keys.push(key);
-    }
-
-    if (keys.length > 0) {
-      await redisClient.del(keys);
-    }
-
-    return res.status(STATUS_CODES.OK).json({
-      message: MESSAGES.STUDENT_UPDATED,
+    await updateStudentService({
+      id: req.params.id,
+      ...req.body,
     });
 
-    
+    return res
+      .status(STATUS_CODES.OK)
+      .json({
+        message: MESSAGES.STUDENT_UPDATED,
+      });
   } catch (error) {
-    console.error(error);
-
-    if (error.name === "SequelizeUniqueConstraintError") {
-      return res.status(STATUS_CODES.CONFLICT).json({
-        message: MESSAGES.EMAIL_ALREADY_EXISTS,
-      });
-    }
-
-    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
-      message: MESSAGES.SOMETHING_WENT_WRONG,
-    });
+    next(error);
   }
 };
 
-export const patchStudent = async (req, res) => {
+
+export const patchStudent = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const { name, personal_email, age, department } = req.body;
-    const updates = {};
-
-    if (name !== undefined) updates.name = name;
-
-    if (personal_email !== undefined) updates.personal_email = personal_email;
-
-    if (age !== undefined) updates.age = age;
-
-    if (department !== undefined) updates.department = department;
-
-    const [updatedRows] = await Student.update(updates, {
-      where: { id },
+    await patchStudentService({
+      id: req.params.id,
+      ...req.body,
     });
-
-    if (updatedRows === 0) {
-      return res
-        .status(STATUS_CODES.NOT_FOUND)
-        .json(MESSAGES.STUDENT_NOT_FOUND);
-    }
-
-     const keys = [];
-
-    for await (const key of redisClient.scanIterator({
-      MATCH: "students:*",
-    })) {
-      keys.push(key);
-    }
-
-    if (keys.length > 0) {
-      await redisClient.del(keys);
-    }
 
     return res
       .status(STATUS_CODES.OK)
       .json(MESSAGES.STUDENT_UPDATED);
-
   } catch (error) {
-    console.error(error);
-
-    if (error.name === "SequelizeUniqueConstraintError") {
-      return res
-        .status(STATUS_CODES.CONFLICT)
-        .json(MESSAGES.EMAIL_ALREADY_EXISTS);
-    }
-
-    return res
-      .status(STATUS_CODES.BAD_REQUEST)
-      .json(MESSAGES.SOMETHING_WENT_WRONG);
+    next(error);
   }
 };
 
-export const deleteStudent = async (req, res) => {
+
+export const deleteStudent = async (req, res, next) => {
   try {
-    const { id } = req.params;
-
-    const deletedRows = await Student.destroy({
-      where: { id },
+    await deleteStudentService({
+      id: req.params.id,
     });
-
-    if (deletedRows === 0) {
-      return res
-        .status(STATUS_CODES.NOT_FOUND)
-        .json(MESSAGES.STUDENT_NOT_FOUND);
-    }
-
-    const keys = [];
-
-    for await (const key of redisClient.scanIterator({
-      MATCH: "students:*",
-    })) {
-      keys.push(key);
-    }
-
-    if (keys.length > 0) {
-      await redisClient.del(keys);
-    }
 
     return res
       .status(STATUS_CODES.OK)
       .json(MESSAGES.STUDENT_DELETED);
   } catch (error) {
-    console.error(error);
-
-    return res
-      .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
-      .json(MESSAGES.SOMETHING_WENT_WRONG);
+    next(error);
   }
 };
