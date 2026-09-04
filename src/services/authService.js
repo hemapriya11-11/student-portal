@@ -1,183 +1,146 @@
 import bcrypt from "bcrypt";
-
-import User from "../models/user.js";
+import jwt from "jsonwebtoken";
 
 import { generatetoken } from "../utils/generatetoken.js";
-
 import { STATUS_CODES } from "../constants/statusCodes.js";
-
 import { MESSAGES } from "../constants/messages.js";
-
 import { sendResetEmail } from "../utils/sendEmail.js";
-
 import { AppError } from "../utils/appError.js";
- 
 import redisClient from "../config/redis.js";
 
-export const signupService = async ({ user_name, email, password }) => {
-  const existingUser = await User.findOne({
-    where: {
-      email,
-    },
-  });
+import {
+  findAccountByIdentifier,
+  findAccountByIdAndRole,
+  findAccountByEmail,
+} from "./accountService.js";
 
-  if (existingUser) {
-    throw new AppError(
-      MESSAGES.USER_ALREADY_EXISTS,
-      STATUS_CODES.BAD_REQUEST
-    );
+export const loginService = async ({ identifier, password }) => {
+  const result = await findAccountByIdentifier(identifier);
+
+  if (!result) {
+    throw new AppError(MESSAGES.INVALID_CREDENTIALS, STATUS_CODES.UNAUTHORIZED);
   }
 
-  const hashedPass = await bcrypt.hash(password, 10);
+  const { account, role } = result;
 
-  await User.create({
-    user_name,
-    email,
-    password: hashedPass,
-  });
-};
-
-
-export const loginService = async ({ email, password }) => {
-  const user = await User.findOne({
-    where: {
-      email,
-    },
-  });
-
-  if (!user) {
-    throw new AppError(
-      MESSAGES.REGISTER_FIRST,
-      STATUS_CODES.BAD_REQUEST
-    );
-  }
-
-  const passwordMatch = await bcrypt.compare(
-    password,
-    user.password
-  );
+  const passwordMatch = await bcrypt.compare(password, account.password);
 
   if (!passwordMatch) {
-    throw new AppError(
-      MESSAGES.INVALID_CREDENTIALS,
-      STATUS_CODES.UNAUTHORIZED
-    );
+    throw new AppError(MESSAGES.INVALID_CREDENTIALS, STATUS_CODES.UNAUTHORIZED);
   }
 
-  const accessToken = generatetoken(
-    {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    },
-    "15m",
-    process.env.ACCESS_TOKEN_SECRET
-  );
-
-  const refreshToken = generatetoken(
-    {
-      id: user.id,
-    },
-    "7d",
-    process.env.REFRESH_TOKEN_SECRET
-  );
+  const { accessToken, refreshToken } = generateAuthTokens(account, role);
 
   return {
     accessToken,
     refreshToken,
+
+    mustChangePassword: account.must_change_password ?? false,
   };
 };
 
+export const changePasswordService = async ({
+  userId,
+  role,
+  currentPassword,
+  newPassword,
+}) => {
+  const account = await findAccountByIdAndRole(userId, role);
+
+  if (!account) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, STATUS_CODES.NOT_FOUND);
+  }
+
+  const passwordMatch = await bcrypt.compare(currentPassword, account.password);
+
+  if (!passwordMatch) {
+    throw new AppError(MESSAGES.INVALID_CREDENTIALS, STATUS_CODES.UNAUTHORIZED);
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  account.password = hashedPassword;
+
+  if (role === "student") {
+    account.must_change_password = false;
+  }
+
+  await account.save();
+};
 
 export const forgotPasswordService = async ({ email }) => {
-  const user = await User.findOne({
-    where: {
-      email,
-    },
-  });
+  const result = await findAccountByEmail(email);
 
-  if (!user) {
-    throw new AppError(
-      MESSAGES.USER_NOT_FOUND,
-      STATUS_CODES.NOT_FOUND
-    );
+  // Don't reveal whether the email exists
+  if (!result) {
+    return;
   }
+
+  const { account, role } = result;
 
   const token = generatetoken(
     {
-      email: user.email,
+      id: account.id,
+      role,
+      type: "password_reset",
     },
-    "15m"
+    "15m",
+    process.env.RESET_TOKEN_SECRET,
   );
 
-  const expiry = new Date(
-    Date.now() + 15 * 60 * 1000
-  );
+  const decoded = jwt.decode(token);
 
-  await User.update(
+  await redisClient.set(
+    `password-reset:${decoded.jti}`,
+    JSON.stringify({
+      id: account.id,
+      role,
+    }),
     {
-      reset_token: token,
-      reset_token_expiry: expiry,
+      EX: 15 * 60,
     },
-    {
-      where: {
-        id: user.id,
-      },
-    }
   );
 
-  await sendResetEmail(user.email, token);
+  await sendResetEmail(account.email, token);
 };
 
+export const resetPasswordService = async ({ password, userId, role, jti }) => {
+  const account = await findAccountByIdAndRole(userId, role);
 
-export const resetPasswordService = async ({ password, userId }) => {
+  if (!account) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, STATUS_CODES.NOT_FOUND);
+  }
+
   const hashedPass = await bcrypt.hash(password, 10);
 
-  await User.update(
-    {
-      password: hashedPass,
-      reset_token: null,
-      reset_token_expiry: null,
-    },
-    {
-      where: {
-        id: userId,
-      },
-    }
-  );
+  account.password = hashedPass;
+
+  await account.save();
+
+  await redisClient.del(`password-reset:${jti}`);
 };
 
 export const refreshTokenService = async (refreshToken) => {
   if (!refreshToken) {
-    throw new AppError(
-      "Refresh token not found",
-      STATUS_CODES.UNAUTHORIZED
-    );
+    throw new AppError("Refresh token not found", STATUS_CODES.UNAUTHORIZED);
   }
 
   try {
-    const decoded = jwt.verify(
-      refreshToken,
-      process.env.REFRESH_TOKEN_SECRET
-    );
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
 
-    const user = await User.findByPk(decoded.id);
+    const account = await findAccountByIdAndRole(decoded.id, decoded.role);
 
-    if (!user) {
-      throw new AppError(
-        MESSAGES.USER_NOT_FOUND,
-        STATUS_CODES.NOT_FOUND
-      );
+    if (!account) {
+      throw new AppError(MESSAGES.USER_NOT_FOUND, STATUS_CODES.NOT_FOUND);
     }
 
     const accessToken = generatetoken(
       {
-        id: user.id,
-        email: user.email,
-        role: user.role,
+        id: account.id,
+        role: decoded.role,
       },
       "15m",
-      process.env.ACCESS_TOKEN_SECRET
+      process.env.ACCESS_TOKEN_SECRET,
     );
 
     return accessToken;
@@ -188,10 +151,11 @@ export const refreshTokenService = async (refreshToken) => {
 
     throw new AppError(
       "Invalid or expired refresh token",
-      STATUS_CODES.UNAUTHORIZED
+      STATUS_CODES.UNAUTHORIZED,
     );
   }
 };
+
 export const logoutService = async (user) => {
   const { jti, exp } = user;
 
@@ -200,12 +164,33 @@ export const logoutService = async (user) => {
   const remainingTime = exp - currentTime;
 
   if (remainingTime > 0) {
-    await redisClient.set(
-      `blacklist:${jti}`,
-      "true",
-      {
-        EX: remainingTime,
-      }
-    );
+    await redisClient.set(`blacklist:${jti}`, "true", {
+      EX: remainingTime,
+    });
   }
+};
+
+export const generateAuthTokens = (account, role) => {
+  const accessToken = generatetoken(
+    {
+      id: account.id,
+      role,
+    },
+    "15m",
+    process.env.ACCESS_TOKEN_SECRET,
+  );
+
+  const refreshToken = generatetoken(
+    {
+      id: account.id,
+      role,
+    },
+    "7d",
+    process.env.REFRESH_TOKEN_SECRET,
+  );
+
+  return {
+    accessToken,
+    refreshToken,
+  };
 };

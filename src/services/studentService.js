@@ -1,53 +1,67 @@
 import { Op } from "sequelize";
+import bcrypt from "bcrypt";
 
 import Student from "../models/student.js";
-
 import redisClient from "../config/redis.js";
 
 import { STATUS_CODES } from "../constants/statusCodes.js";
-
 import { MESSAGES } from "../constants/messages.js";
-
 import { AppError } from "../utils/appError.js";
 
+import { generateStudentId } from "../utils/generateStudentId.js";
 
 const clearStudentCache = async () => {
   const keys = [];
 
-  for await (const key of redisClient.scanIterator({
+  for await (const batch of redisClient.scanIterator({
     MATCH: "students:*",
   })) {
-    keys.push(key);
+    keys.push(...batch);
   }
 
   if (keys.length > 0) {
     await redisClient.del(keys);
   }
 };
-
 export const createStudentService = async ({
-  userId,
   name,
-  personal_email,
-  age,
+  email,
+  date_of_birth,
+  admission_year,
   department,
 }) => {
   try {
+    const normalizedDepartment = department.toUpperCase();
+
+    const studentId = await generateStudentId(
+      admission_year,
+      normalizedDepartment,
+    );
+
+    const temporaryPassword = new Date(date_of_birth)
+      .toISOString()
+      .split("T")[0]
+      .replaceAll("-", "");
+
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+
     const student = await Student.create({
-      user_id: userId,
+      student_id: studentId,
       name,
-      personal_email,
-      age,
-      department,
+      email,
+      password: hashedPassword,
+      date_of_birth,
+      admission_year,
+      department: normalizedDepartment,
+      must_change_password: true,
     });
+
+    await clearStudentCache();
 
     return student;
   } catch (error) {
     if (error.name === "SequelizeUniqueConstraintError") {
-      throw new AppError(
-        MESSAGES.EMAIL_ALREADY_EXISTS,
-        STATUS_CODES.CONFLICT
-      );
+      throw new AppError(MESSAGES.EMAIL_ALREADY_EXISTS, STATUS_CODES.CONFLICT);
     }
 
     throw error;
@@ -56,19 +70,23 @@ export const createStudentService = async ({
 
 export const getStudentService = async ({
   id,
+  student_id,
   name,
-  age,
+  email,
+  admission_year,
   department,
-  personal_email,
   page = 1,
   limit = 10,
 }) => {
+  const normalizedDepartment = department?.toUpperCase();
+
   const query = {
     id,
+    student_id,
     name,
-    age,
-    department,
-    personal_email,
+    email,
+    admission_year,
+    department: normalizedDepartment,
     page,
     limit,
   };
@@ -91,33 +109,40 @@ export const getStudentService = async ({
     where.id = id;
   }
 
+  if (student_id) {
+    where.student_id = student_id;
+  }
+
   if (name) {
     where.name = {
       [Op.like]: `%${name}%`,
     };
   }
 
-  if (age) {
-    where.age = age;
+  if (email) {
+    where.email = email;
   }
 
-  if (department) {
+  if (admission_year) {
+    where.admission_year = Number(admission_year);
+  }
+
+  if (normalizedDepartment) {
     where.department = {
-      [Op.like]: `%${department}%`,
+      [Op.like]: `%${normalizedDepartment}%`,
     };
   }
 
-  if (personal_email) {
-    where.personal_email = personal_email;
-  }
-
-  const offset =
-    (Number(page) - 1) * Number(limit);
+  const offset = (Number(page) - 1) * Number(limit);
 
   const students = await Student.findAll({
     where,
+    attributes: {
+      exclude: ["password"],
+    },
     limit: Number(limit),
     offset,
+    order: [["id", "ASC"]],
   });
 
   const response = {
@@ -126,13 +151,9 @@ export const getStudentService = async ({
     students,
   };
 
-  await redisClient.set(
-    cacheKey,
-    JSON.stringify(response),
-    {
-      EX: 60,
-    }
-  );
+  await redisClient.set(cacheKey, JSON.stringify(response), {
+    EX: 60,
+  });
 
   return response;
 };
@@ -140,39 +161,35 @@ export const getStudentService = async ({
 export const updateStudentService = async ({
   id,
   name,
-  personal_email,
-  age,
+  email,
+  date_of_birth,
+  admission_year,
   department,
 }) => {
   try {
     const [updatedRows] = await Student.update(
       {
         name,
-        personal_email,
-        age,
-        department,
+        email,
+        date_of_birth,
+        admission_year,
+        department: department.toUpperCase(),
       },
       {
         where: {
           id,
         },
-      }
+      },
     );
 
     if (updatedRows === 0) {
-      throw new AppError(
-        MESSAGES.STUDENT_NOT_FOUND,
-        STATUS_CODES.NOT_FOUND
-      );
+      throw new AppError(MESSAGES.STUDENT_NOT_FOUND, STATUS_CODES.NOT_FOUND);
     }
 
     await clearStudentCache();
   } catch (error) {
     if (error.name === "SequelizeUniqueConstraintError") {
-      throw new AppError(
-        MESSAGES.EMAIL_ALREADY_EXISTS,
-        STATUS_CODES.CONFLICT
-      );
+      throw new AppError(MESSAGES.EMAIL_ALREADY_EXISTS, STATUS_CODES.CONFLICT);
     }
 
     throw error;
@@ -182,8 +199,9 @@ export const updateStudentService = async ({
 export const patchStudentService = async ({
   id,
   name,
-  personal_email,
-  age,
+  email,
+  date_of_birth,
+  admission_year,
   department,
 }) => {
   try {
@@ -193,41 +211,36 @@ export const patchStudentService = async ({
       updates.name = name;
     }
 
-    if (personal_email !== undefined) {
-      updates.personal_email = personal_email;
+    if (email !== undefined) {
+      updates.email = email;
     }
 
-    if (age !== undefined) {
-      updates.age = age;
+    if (date_of_birth !== undefined) {
+      updates.date_of_birth = date_of_birth;
+    }
+
+    if (admission_year !== undefined) {
+      updates.admission_year = admission_year;
     }
 
     if (department !== undefined) {
-      updates.department = department;
+      updates.department = department.toUpperCase();
     }
 
-    const [updatedRows] = await Student.update(
-      updates,
-      {
-        where: {
-          id,
-        },
-      }
-    );
+    const [updatedRows] = await Student.update(updates, {
+      where: {
+        id,
+      },
+    });
 
     if (updatedRows === 0) {
-      throw new AppError(
-        MESSAGES.STUDENT_NOT_FOUND,
-        STATUS_CODES.NOT_FOUND
-      );
+      throw new AppError(MESSAGES.STUDENT_NOT_FOUND, STATUS_CODES.NOT_FOUND);
     }
 
     await clearStudentCache();
   } catch (error) {
     if (error.name === "SequelizeUniqueConstraintError") {
-      throw new AppError(
-        MESSAGES.EMAIL_ALREADY_EXISTS,
-        STATUS_CODES.CONFLICT
-      );
+      throw new AppError(MESSAGES.EMAIL_ALREADY_EXISTS, STATUS_CODES.CONFLICT);
     }
 
     throw error;
@@ -242,10 +255,7 @@ export const deleteStudentService = async ({ id }) => {
   });
 
   if (deletedRows === 0) {
-    throw new AppError(
-      MESSAGES.STUDENT_NOT_FOUND,
-      STATUS_CODES.NOT_FOUND
-    );
+    throw new AppError(MESSAGES.STUDENT_NOT_FOUND, STATUS_CODES.NOT_FOUND);
   }
 
   await clearStudentCache();

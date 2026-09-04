@@ -1,75 +1,72 @@
 import express from "express";
 
 import {
-  createStudent,
-  getStudent,
-  updateStudent,
-  deleteStudent,
-  patchStudent,
+createStudent,
+getStudent,
+updateStudent,
+patchStudent,
+deleteStudent,
 } from "../controllers/studentController.js";
 
 import { getMyStudent } from "../controllers/studentProfileController.js";
 
-import { validate } from "../middleware/validate.js";
-
 import {
-  createStudentSchema,
-  studentIdSchema,
-  updateStudentSchema,
-  patchStudentSchema,
-  paginationSchema,
+createStudentSchema,
+updateStudentSchema,
+patchStudentSchema,
+getStudentQuerySchema,
 } from "../validations/studentValidation.js";
 
+import { validate } from "../middleware/validate.js";
 import { verifytoken } from "../middleware/validatetoken.js";
 import { authorize } from "../middleware/authorize.js";
+import { mustChangePassword } from "../middleware/mustChangePassword.js";
 
 const router = express.Router();
 
+router.use(verifytoken);
+
+
+
 router.get(
-  "/",
-  verifytoken,
-  authorize("admin", "staff"),
-  validate(paginationSchema, "query"),
-  getStudent,
+  "/me",
+  authorize("student"),
+  mustChangePassword,
+  getMyStudent,
 );
+
 router.post(
-  "/",
-  verifytoken,
-  authorize("admin", "staff"),
+  "/new",
+  authorize("admin"),
   validate(createStudentSchema, "body"),
   createStudent,
 );
 
+router.get(
+  "/",
+  authorize("admin"),
+  validate(getStudentQuerySchema, "query"),
+  getStudent,
+);
+
 router.put(
-  "/:id",
-  verifytoken,
-  authorize("admin", "staff"),
-  validate(studentIdSchema, "params"),
+  "/update/:id",
+  authorize("admin"),
   validate(updateStudentSchema, "body"),
   updateStudent,
 );
 
-router.delete(
-  "/:id",
-  verifytoken,
-  authorize("admin"),
-  validate(studentIdSchema, "params"),
-  deleteStudent,
-);
-
 router.patch(
-  "/:id",
-  verifytoken,
-  authorize("admin", "staff"),
-  validate(studentIdSchema, "params"),
+  "/patch/:id",
+  authorize("admin"),
   validate(patchStudentSchema, "body"),
   patchStudent,
 );
 
-
-
-//student Routes
-
-router.get("/me", verifytoken, authorize("student"), getMyStudent);
+router.delete(
+  "/delete/:id",
+  authorize("admin"),
+  deleteStudent,
+);
 
 export default router;

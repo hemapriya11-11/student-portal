@@ -1,56 +1,127 @@
 import Joi from "joi";
 
-
 export const createStudentSchema = Joi.object({
-  name: Joi.string().min(2).max(50).required(),
+name: Joi.string()
+.trim()
+.min(2)
+.max(255)
+.required(),
 
-  personal_email: Joi.string().email().required(),
+email: Joi.string()
+.email()
+.lowercase()
+.trim()
+.required(),
 
-  age: Joi.number().integer().min(1).max(100).required(),
+date_of_birth: Joi.date()
+.max("now")
+.required(),
 
-  department: Joi.string().min(2).max(50).required()
+admission_year: Joi.number()
+.integer()
+.min(2000)
+.max(new Date().getFullYear())
+.required(),
+
+department: Joi.string()
+.trim()
+.min(2)
+.max(50)
+.required(),
 });
 
+export const getStudentQuerySchema = Joi.object({
+id: Joi.number()
+.integer()
+.positive(),
 
-export const studentIdSchema = Joi.object({
-  id: Joi.number().integer().positive().required()
+student_id: Joi.string()
+.trim(),
+
+name: Joi.string()
+.trim()
+.min(2)
+.max(255),
+
+email: Joi.string()
+.email()
+.lowercase()
+.trim(),
+
+admission_year: Joi.number()
+.integer()
+.min(2000)
+.max(new Date().getFullYear()),
+
+department: Joi.string()
+.trim()
+.min(2)
+.max(50),
+
+page: Joi.number()
+.integer()
+.min(1)
+.default(1),
+
+limit: Joi.number()
+.integer()
+.min(1)
+.max(100)
+.default(10),
 });
 
 
 export const updateStudentSchema = Joi.object({
-  name: Joi.string().min(2).max(50).required(),
+name: Joi.string()
+.trim()
+.min(2)
+.max(255)
+.required(),
 
-  personal_email: Joi.string().email().required(),
+email: Joi.string()
+.email()
+.lowercase()
+.trim()
+.required(),
 
-  age: Joi.number().integer().min(1).max(100).required(),
+date_of_birth: Joi.date()
+.max("now")
+.required(),
 
-  department: Joi.string().min(2).max(50).required()
+admission_year: Joi.number()
+.integer()
+.min(2000)
+.max(new Date().getFullYear())
+.required(),
+
+department: Joi.string()
+.trim()
+.min(2)
+.max(50)
+.required(),
 });
-
 
 export const patchStudentSchema = Joi.object({
-  name: Joi.string().min(2).max(50),
+name: Joi.string()
+.trim()
+.min(2)
+.max(255),
 
-  personal_email: Joi.string().email(),
+email: Joi.string()
+.email()
+.lowercase()
+.trim(),
 
-  age: Joi.number().integer().min(1).max(100),
+date_of_birth: Joi.date()
+.max("now"),
 
-  department: Joi.string().min(2).max(50)
+admission_year: Joi.number()
+.integer()
+.min(2000)
+.max(new Date().getFullYear()),
+
+department: Joi.string()
+.trim()
+.min(2)
+.max(50),
 }).min(1);
-
-
-export const paginationSchema = Joi.object({
-  id: Joi.number().integer().positive(),
-
-  name: Joi.string().min(2).max(50),
-
-  age: Joi.number().integer().min(1).max(100),
-
-  department: Joi.string().min(2).max(50),
-
-  personal_email: Joi.string().email(),
-
-  page: Joi.number().integer().min(1).default(1),
-
-  limit: Joi.number().integer().min(1).max(100).default(10)
-});

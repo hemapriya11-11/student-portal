@@ -1,42 +1,45 @@
 import jwt from "jsonwebtoken";
 
-import User from "../models/user.js";
-
-import { MESSAGES } from "../constants/messages.js";
+import redisClient from "../config/redis.js";
 
 import { STATUS_CODES } from "../constants/statusCodes.js";
+import { MESSAGES } from "../constants/messages.js";
 
 export const verifyResetToken = async (req, res, next) => {
   try {
     const { token } = req.params;
-    const user = await User.findOne({
-      where: {
-        reset_token: token,
-      },
-    });
 
-    if (!user) {
-      return res.status(STATUS_CODES.BAD_REQUEST).send(MESSAGES.INVALID_TOKEN);
+    const decoded = jwt.verify(
+      token,
+      process.env.RESET_TOKEN_SECRET,
+    );
+
+    if (decoded.type !== "password_reset") {
+      return res
+        .status(STATUS_CODES.UNAUTHORIZED)
+        .send(MESSAGES.INVALID_OR_EXPIRED_TOKEN);
     }
 
-    if (new Date(user.reset_token_expiry) < new Date()) {
-      return res.status(STATUS_CODES.BAD_REQUEST).send(MESSAGES.TOKEN_EXPIRED);
+    const resetSession = await redisClient.get(
+      `password-reset:${decoded.jti}`,
+    );
+
+    if (!resetSession) {
+      return res
+        .status(STATUS_CODES.UNAUTHORIZED)
+        .send(MESSAGES.INVALID_OR_EXPIRED_TOKEN);
     }
 
-    try {
-      jwt.verify(token, process.env.JWT_SECRET);
-    } catch {
-      return res.status(STATUS_CODES.BAD_REQUEST).send(MESSAGES.INVALID_TOKEN);
-    }
-
-    req.user = user;
+    req.user = {
+      id: decoded.id,
+      role: decoded.role,
+      jti: decoded.jti,
+    };
 
     next();
   } catch (error) {
-    console.error(error);
-
     return res
-      .status(STATUS_CODES.INTERNAL_SERVER_ERROR)
-      .send(MESSAGES.SOMETHING_WENT_WRONG);
+      .status(STATUS_CODES.UNAUTHORIZED)
+      .send(MESSAGES.INVALID_OR_EXPIRED_TOKEN);
   }
 };

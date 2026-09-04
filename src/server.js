@@ -6,15 +6,13 @@ import { connectRedis } from "./config/redis.js";
 
 dotenv.config();
 
-const PORT = process.env.PORT ;
+const PORT = process.env.PORT;
 
-const startServer = async () => { 
+const startServer = async () => {
   try {
     await sequelize.authenticate();
 
-    await sequelize.sync();
-
-    console.log("Sequelize models synced");
+    console.log("Database connected");
 
     await connectRedis();
 
