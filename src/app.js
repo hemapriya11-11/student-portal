@@ -1,22 +1,22 @@
 import express from "express";
 import studentRoutes from "./routes/studentRoutes.js";
 import routes from "./routes/authRoutes.js";
+import grievanceRoutes from "./routes/grievanceRoutes.js";
 import cookieParser from "cookie-parser";
 import { errorHandler } from "./middleware/errorHandler.js";
 import passport from "./config/passport.js";
 import googleAuthRoutes from "./routes/googleAuthRoutes.js";
+import "./models/associations.js";
 
 const app = express();
-
 
 app.use(express.json());
 app.use(passport.initialize());
 app.use(cookieParser());
-
 app.use("/admin/students", studentRoutes);
 app.use("/auth", routes);
 app.use("/auth", googleAuthRoutes);
-
+app.use("/grievances", grievanceRoutes);
 app.use(errorHandler);
 
 export default app;

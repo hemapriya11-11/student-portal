@@ -23,7 +23,6 @@ export const validate = (schema, property) => {
       );
     }
 
-    // req.query cannot be reassigned in Express 5
     if (property === "query") {
       Object.assign(req.query, value);
     } else {
