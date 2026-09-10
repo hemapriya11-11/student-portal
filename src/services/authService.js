@@ -71,7 +71,6 @@ export const changePasswordService = async ({
 export const forgotPasswordService = async ({ email }) => {
   const result = await findAccountByEmail(email);
 
-  // Don't reveal whether the email exists
   if (!result) {
     return;
   }

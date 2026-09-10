@@ -1,4 +1,5 @@
 import express from "express";
+
 import studentRoutes from "./routes/studentRoutes.js";
 import routes from "./routes/authRoutes.js";
 import grievanceRoutes from "./routes/grievanceRoutes.js";
@@ -7,6 +8,7 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import passport from "./config/passport.js";
 import googleAuthRoutes from "./routes/googleAuthRoutes.js";
 import "./models/associations.js";
+import announcementRoutes from "./routes/announcementRoutes.js";
 
 const app = express();
 
@@ -17,6 +19,8 @@ app.use("/admin/students", studentRoutes);
 app.use("/auth", routes);
 app.use("/auth", googleAuthRoutes);
 app.use("/grievances", grievanceRoutes);
+app.use("/announcements", announcementRoutes);
+
 app.use(errorHandler);
 
 export default app;

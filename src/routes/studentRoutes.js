@@ -43,7 +43,7 @@ router.post(
 );
 
 router.get(
-  "/",
+  "/all",
   authorize("admin"),
   validate(getStudentQuerySchema, "query"),
   getStudent,

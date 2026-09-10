@@ -1,4 +1,6 @@
+
 import dotenv from "dotenv";
+import http from "http";
 import http from "http";
 
 import app from "./app.js";
@@ -30,4 +32,7 @@ const startServer = async () => {
   }
 };
 
+<<<<<<< HEAD
+startServer();
+=======
 startServer();

@@ -1,182 +1,355 @@
-# Student Portal Backend
+# Student Portal API
 
-A RESTful backend API for a Student Portal built using Node.js, Express.js, MySQL, and Sequelize ORM.
+A Node.js + Express backend built for a student management portal with role-based authentication, password recovery workflows, and admin/student operations.
 
-The project provides authentication, role-based access control, student management, validation, and password reset functionality.
+The project is designed around MySQL, Sequelize, Redis, JWT, and Google OAuth for secure and modular access control.
 
-##  Features
+## Features
 
-- User registration and login
-- JWT-based authentication with JTI (JWT ID) token invalidation
-- Logout functionality using Redis token blacklist
-- Password hashing using bcrypt
-- Forgot password and reset password functionality
-- Password reset emails via Nodemailer (`sendEmail.js`)
-- Access token refresh mechanism
-- Role-Based Access Control (RBAC)
-- Admin, Staff/Teacher, and Student roles
-- Student CRUD operations
-- Student self-profile access
-- Pagination and filtering
-- Joi request validation
-- Sequelize ORM with MySQL
-- Redis caching support
-- Centralized error handling with custom error class
-- Rate limiting middleware for API protection
-- Service layer architecture for business logic separation
-- Centralized HTTP status codes and response messages
-- Environment variable configuration
-- Nodemon for development
+- Admin, staff, and student login using a single `identifier` field
+- JWT access tokens with refresh-token cookie rotation
+- Redis-based JWT blacklist for logout invalidation
+- Password change enforcement for first-time logins (`must_change_password`)
+- Forgot password and reset password via email
+- Student creation, listing, update, patch, and delete operations
+- Student self-profile route
+- Role-based authorization middleware
+- Joi validation for request payloads and query filters
+- Google OAuth login flow
+- Redis-backed rate limiting and caching
+- MySQL + Sequelize models and migrations
+- Centralized error handling and response conventions
 
-##  Tech Stack
+## Tech stack
 
-| Technology | Purpose |
-|------------|---------|
-| Node.js | Runtime environment |
-| Express.js | Backend framework |
-| MySQL | Database |
-| Sequelize | ORM |
-| JWT | Authentication |
-| bcrypt | Password hashing |
-| Nodemailer | Sending password reset emails |
-| Redis | Caching and session management |
-| Joi | Request validation |
-| dotenv | Environment variables |
-| Nodemon | Development server |
+- Node.js
+- Express.js
+- MySQL
+- Sequelize ORM
+- Redis
+- JWT
+- bcrypt
+- Joi
+- Nodemailer
+- Passport.js + Google OAuth 2.0
+- dotenv
+- nodemon
 
-##  Project Structure
+## Project structure
 
 ```text
 student-portal/
-│
 ├── src/
-│   │
 │   ├── config/
-│   │   ├── sequelize.js
-│   │   └── redis.js
-│   │
+│   │   ├── passport.js
+│   │   ├── redis.js
+│   │   └── sequelize.js
 │   ├── constants/
-│   │   ├── statusCodes.js
-│   │   └── messages.js
-│   │
+│   │   ├── messages.js
+│   │   └── statusCodes.js
 │   ├── controllers/
 │   │   ├── authController.js
+│   │   ├── googleAuthController.js
 │   │   ├── studentController.js
 │   │   └── studentProfileController.js
-│   │
 │   ├── middleware/
 │   │   ├── authorize.js
-│   │   ├── validatetoken.js
-│   │   ├── verifyresettoken.js
-│   │   ├── validate.js
 │   │   ├── errorHandler.js
-│   │   └── ratelimiter.js
-│   │
+│   │   ├── mustChangePassword.js
+│   │   ├── ratelimiter.js
+│   │   ├── validatetoken.js
+│   │   ├── validate.js
+│   │   └── verifyresettoken.js
+│   ├── migrations/
 │   ├── models/
-│   │   ├── user.js
+│   │   ├── admin.js
+│   │   ├── staff.js
 │   │   └── student.js
-│   │
 │   ├── routes/
 │   │   ├── authRoutes.js
+│   │   ├── googleAuthRoutes.js
 │   │   └── studentRoutes.js
-│   │
+│   ├── seeders/
 │   ├── services/
+│   │   ├── accountService.js
 │   │   ├── authService.js
 │   │   ├── studentService.js
 │   │   └── studentprofileService.js
-│   │
 │   ├── utils/
+│   │   ├── appError.js
+│   │   ├── generateStudentId.js
 │   │   ├── generatetoken.js
-│   │   ├── sendEmail.js
-│   │   └── appError.js
-│   │
+│   │   └── sendEmail.js
 │   ├── validations/
 │   │   ├── authJoi.js
 │   │   └── studentValidation.js
-│   │
 │   ├── app.js
 │   └── server.js
-│
 ├── .env
 ├── .gitignore
+├── .sequelizerc
 ├── package.json
 ├── package-lock.json
-└── README.md
+├── README.md
+└── node_modules/
 ```
 
-## Email Configuration
+## Prerequisites
 
-The forgot password flow sends a reset email using Nodemailer through `src/utils/sendEmail.js`.
+Before running the project, make sure you have:
 
-Add the following values to your `.env` file:
+- Node.js 18+
+- MySQL server running
+- Redis server running
+- A Gmail account or SMTP-based email provider for reset emails
+
+## Installation
+
+1. Clone the repository and go into the project folder.
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Create a `.env` file in the project root using the following format:
 
 ```env
-EMAIL_USER=your-gmail-address
-EMAIL_PASS=your-app-password
-RESET_PASSWORD_URL=http://localhost:3000
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_NAME=student_portal
+DB_PORT=3306
+
+NODE_ENV=development
+PORT=5000
+
+ACCESS_TOKEN_SECRET=your_access_token_secret
+REFRESH_TOKEN_SECRET=your_refresh_token_secret
+RESET_TOKEN_SECRET=your_reset_token_secret
+
 REDIS_URL=redis://localhost:6379
-ACCESS_TOKEN_SECRET=your-access-token-secret
-REFRESH_TOKEN_SECRET=your-refresh-token-secret
+
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASS=your_app_password
+RESET_PASSWORD_URL=http://localhost:5000
+
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_CALLBACK_URL=http://localhost:5000/auth/google/callback
+
+ADMIN_NAME=Administrator
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=StrongPassword123
 ```
 
-## JWT Authentication & Token Management
+4. Run the database migrations:
 
-The application uses JWT (JSON Web Tokens) with the following features:
+```bash
+npm run db:migrate
+```
 
-### Token Structure
-- **Access Token**: Short-lived (15 minutes) token for API requests
-- **Refresh Token**: Long-lived (7 days) token stored in HttpOnly cookie for token renewal
-- **JTI (JWT ID)**: Unique identifier in each token for invalidation tracking
+5. Seed the initial admin user:
 
-### Token Endpoints
-- `POST /auth/login` - Returns accessToken and sets refreshToken cookie
-- `POST /auth/refresh-token` - Generates new accessToken using refreshToken
-- `POST /auth/logout` - Invalidates current accessToken by adding JTI to Redis blacklist
+```bash
+npm run db:seed
+```
 
-### Logout with JTI Blacklist
-When a user logs out:
-1. The JTI (unique token ID) is extracted from the JWT
-2. JTI is stored in Redis blacklist with expiration equal to token's remaining lifetime
-3. Any subsequent requests with blacklisted JTI are rejected
-4. The refreshToken cookie is cleared
+6. Start the API server:
 
-This ensures:
-- Immediate token invalidation without database queries
-- Automatic cleanup when token expires (Redis TTL)
-- No manual token revocation needed after expiration
+```bash
+npm run dev
+```
 
+The app runs on the port configured in `PORT` (default: `5000`).
 
-## Error Handling
+## Authentication and authorization
 
-The application uses a centralized error handling system with:
+This backend supports three primary roles:
 
-- **AppError**: Custom error class in `src/utils/appError.js` for creating operational errors with status codes
-- **errorHandler**: Middleware in `src/middleware/errorHandler.js` for catching and formatting errors
+- `admin`
+- `staff`
+- `student`
 
-## Rate Limiting
+The login flow accepts a single `identifier` value that can be either:
 
-Rate limiting is implemented via `src/middleware/ratelimiter.js` to protect API endpoints from abuse:
+- admin email
+- staff ID
+- student ID
 
-- Limits requests to 5 per minute per IP address
-- Uses Redis to track request counts
-- Returns HTTP 429 (Too Many Requests) when limit is exceeded
+Example login request:
 
-## Service Layer Architecture
+```json
+{
+ "identifier": "STU2024001",
+ "password": "yourPassword"
+}
+```
 
-Business logic is separated into services for better maintainability:
+### JWT behavior
 
-- **authService.js**: Authentication-related operations (signup, login, password reset)
-- **studentService.js**: Student data operations (CRUD operations with caching)
-- **studentprofileService.js**: Student profile operations
+- Access token: short-lived and used for authenticated requests
+- Refresh token: stored in an `HttpOnly` cookie
+- Logout adds the access token JTI to Redis blacklist
+- Token expiration is enforced through the verification middleware
 
-Services use Redis caching to improve performance and reduce database queries.
+## API endpoints
 
-## Redis Configuration
+### Auth routes
 
-Redis is configured in `src/config/redis.js` for:
-- Caching student data
-- Rate limiting requests
-- Session management
+#### POST /auth/login
 
-Ensure Redis is running and the `REDIS_URL` environment variable is set correctly.
+Logs in a user and returns a JWT access token.
+
+Request body:
+
+```json
+{
+ "identifier": "admin@example.com",
+ "password": "StrongPassword123"
+}
+```
+
+Response:
+
+```json
+{
+ "msg": "Login successful",
+ "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+ "mustChangePassword": false
+}
+```
+
+#### POST /auth/forgotpassword
+
+Request body:
+
+```json
+{
+ "email": "student@example.com"
+}
+```
+
+#### POST /auth/resetpassword/:token
+
+Resets the password using a token sent by email.
+
+Request body:
+
+```json
+{
+ "password": "NewPassword123"
+}
+```
+
+#### POST /auth/change-password
+
+Requires authentication. Changes the current user password.
+
+Request body:
+
+```json
+{
+ "currentPassword": "OldPassword123",
+ "newPassword": "NewPassword123"
+}
+```
+
+#### POST /auth/refresh-token
+
+Refreshes the short-lived access token from the refresh-token cookie.
+
+#### POST /auth/logout
+
+Logs out the current user and clears the refresh-token cookie.
+
+#### GET /auth/google
+
+Starts Google OAuth login.
+
+#### GET /auth/google/callback
+
+Google OAuth callback route.
+
+### Student routes
+
+All student routes are mounted under `/admin/students` and require the authenticated user to have the correct role.
+
+#### GET /admin/students/me
+
+Returns the logged-in student profile. Allowed only for students.
+
+#### POST /admin/students/new
+
+Creates a new student record. Allowed for admins.
+
+Request body:
+
+```json
+{
+ "name": "Sanjay Kumar",
+ "email": "sanjay@example.com",
+ "date_of_birth": "2004-06-01",
+ "admission_year": 2024,
+ "department": "CSE"
+}
+```
+
+#### GET /admin/students/all
+
+Lists students with optional filters and pagination.
+
+Query parameters:
+
+- `id`
+- `student_id`
+- `name`
+- `email`
+- `admission_year`
+- `department`
+- `page`
+- `limit`
+
+#### PUT /admin/students/update/:id
+
+Fully updates a student record.
+
+#### PATCH /admin/students/patch/:id
+
+Partially updates a student record.
+
+#### DELETE /admin/students/delete/:id
+
+Deletes a student record.
+
+## Security notes
+
+- Passwords are hashed using bcrypt.
+- Redis stores token blacklist entries and request counters.
+- Rate limiting is enforced to reduce brute-force abuse.
+- Validation is centralized using Joi before the controller layer executes.
+- Refresh tokens are set as `HttpOnly` cookies to minimize browser-side exposure.
+
+## Database and migrations
+
+The project includes Sequelize migration files and a seed file for the initial admin account.
+
+Useful commands:
+
+```bash
+npm run db:migrate
+npm run db:migrate:status
+npm run db:migrate:undo
+npm run db:seed
+```
+
+## Notes
+
+- Student IDs are generated automatically using admission year and department information.
+- Newly created student accounts are created with `must_change_password = true` by default.
+- The application expects MySQL and Redis services to be running before startup.
+
+## License
+
+ISC
 
