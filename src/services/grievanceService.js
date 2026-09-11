@@ -1,7 +1,7 @@
 import Grievance from "../models/Grievance.js";
-import Student from "../models/Student.js";
-import Staff from "../models/Staff.js";
-
+import Student from "../models/student.js";
+import Staff from "../models/staff.js";
+import { createNotification } from "./notificationService.js";
 import { AppError } from "../utils/appError.js";
 import { STATUS_CODES } from "../constants/statusCodes.js";
 import { getIO } from "../socket/socket.js";
@@ -18,7 +18,6 @@ export const createGrievance = async (
 
   const io = getIO();
 
-  // Notify admins and staff that a new grievance exists
   io.to("role:admin").emit(
     "grievance:created",
     grievance,
@@ -29,9 +28,48 @@ export const createGrievance = async (
     grievance,
   );
 
+  const [admins, staffMembers] = await Promise.all([
+    Admin.findAll({
+      attributes: ["id"],
+    }),
+
+    Staff.findAll({
+      attributes: ["id"],
+    }),
+  ]);
+
+  await Promise.all(
+    admins.map((admin) =>
+      createNotification({
+        recipientId: admin.id,
+        recipientRole: "admin",
+        type: "GRIEVANCE_CREATED",
+        title: "New Grievance",
+        message: `A new grievance has been created: ${grievance.subject}`,
+        metadata: {
+          grievanceId: grievance.id,
+        },
+      }),
+    ),
+  );
+
+  await Promise.all(
+    staffMembers.map((staff) =>
+      createNotification({
+        recipientId: staff.id,
+        recipientRole: "staff",
+        type: "GRIEVANCE_CREATED",
+        title: "New Grievance",
+        message: `A new grievance has been created: ${grievance.subject}`,
+        metadata: {
+          grievanceId: grievance.id,
+        },
+      }),
+    ),
+  );
+
   return grievance;
 };
-
 
 export const getMyGrievances = async (studentId) => {
   const grievances = await Grievance.findAll({
@@ -165,7 +203,6 @@ export const getGrievanceById = async (
   return grievance;
 };
 
-
 export const updateGrievanceStatus = async (
   grievanceId,
   status,
@@ -197,9 +234,22 @@ export const updateGrievanceStatus = async (
 
   await grievance.save();
 
+  // Create persistent notification + real-time notification
+  await createNotification({
+    recipientId: grievance.student_id,
+    recipientRole: "student",
+    type: "GRIEVANCE_STATUS_UPDATED",
+    title: "Grievance Status Updated",
+    message: `Your grievance "${grievance.subject}" status has been updated to ${status}.`,
+    metadata: {
+      grievanceId: grievance.id,
+      status: grievance.status,
+    },
+  });
+
   const io = getIO();
 
-  // Notify the student who owns this grievance
+  // Existing event for updating grievance data in the frontend
   io.to(
     `user:student:${grievance.student_id}`,
   ).emit(
@@ -209,7 +259,6 @@ export const updateGrievanceStatus = async (
 
   return grievance;
 };
-
 
 export const assignGrievance = async (
   grievanceId,
@@ -244,9 +293,34 @@ export const assignGrievance = async (
 
   await grievance.save();
 
+  // Notify assigned staff
+  await createNotification({
+    recipientId: staffId,
+    recipientRole: "staff",
+    type: "GRIEVANCE_ASSIGNED",
+    title: "New Grievance Assigned",
+    message: `A grievance has been assigned to you: "${grievance.subject}".`,
+    metadata: {
+      grievanceId: grievance.id,
+    },
+  });
+
+  // Notify grievance owner
+  await createNotification({
+    recipientId: grievance.student_id,
+    recipientRole: "student",
+    type: "GRIEVANCE_ASSIGNED",
+    title: "Grievance Assigned",
+    message: `Your grievance "${grievance.subject}" has been assigned to a staff member and is now being processed.`,
+    metadata: {
+      grievanceId: grievance.id,
+      assignedStaffId: staffId,
+    },
+  });
+
   const io = getIO();
 
-  // Notify assigned staff member
+  // Existing event: assigned staff's grievance UI updates
   io.to(
     `user:staff:${staffId}`,
   ).emit(
@@ -254,7 +328,7 @@ export const assignGrievance = async (
     grievance,
   );
 
-  // Notify grievance owner
+  // Existing event: student's grievance UI updates
   io.to(
     `user:student:${grievance.student_id}`,
   ).emit(
@@ -264,7 +338,6 @@ export const assignGrievance = async (
 
   return grievance;
 };
-
 
 export const updateGrievancePriority = async (
   grievanceId,
@@ -285,9 +358,21 @@ export const updateGrievancePriority = async (
 
   await grievance.save();
 
+  await createNotification({
+    recipientId: grievance.student_id,
+    recipientRole: "student",
+    type: "GRIEVANCE_PRIORITY_UPDATED",
+    title: "Grievance Priority Updated",
+    message: `The priority of your grievance "${grievance.subject}" has been updated to ${priority}.`,
+    metadata: {
+      grievanceId: grievance.id,
+      priority: grievance.priority,
+    },
+  });
+
   const io = getIO();
 
-  // Notify grievance owner about priority changes
+  // Update grievance UI in real time
   io.to(
     `user:student:${grievance.student_id}`,
   ).emit(

@@ -9,6 +9,7 @@ import passport from "./config/passport.js";
 import googleAuthRoutes from "./routes/googleAuthRoutes.js";
 import "./models/associations.js";
 import announcementRoutes from "./routes/announcementRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.use("/auth", routes);
 app.use("/auth", googleAuthRoutes);
 app.use("/grievances", grievanceRoutes);
 app.use("/announcements", announcementRoutes);
+app.use("/notifications", notificationRoutes);
 
 app.use(errorHandler);
 

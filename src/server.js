@@ -1,7 +1,6 @@
 
 import dotenv from "dotenv";
 import http from "http";
-import http from "http";
 
 import app from "./app.js";
 import sequelize from "./config/sequelize.js";
@@ -32,7 +31,4 @@ const startServer = async () => {
   }
 };
 
-<<<<<<< HEAD
-startServer();
-=======
 startServer();
