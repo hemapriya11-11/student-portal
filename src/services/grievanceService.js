@@ -178,7 +178,6 @@ export const getGrievanceById = async (
     );
   }
 
-  // Student can only view their own grievance
   if (
     user.role === "student" &&
     grievance.student_id !== user.id
@@ -189,7 +188,6 @@ export const getGrievanceById = async (
     );
   }
 
-  // Staff can only view grievances assigned to them
   if (
     user.role === "staff" &&
     grievance.assigned_staff_id !== user.id
@@ -219,7 +217,6 @@ export const updateGrievanceStatus = async (
     );
   }
 
-  // Staff can only update grievances assigned to them
   if (
     user.role === "staff" &&
     grievance.assigned_staff_id !== user.id
@@ -234,7 +231,6 @@ export const updateGrievanceStatus = async (
 
   await grievance.save();
 
-  // Create persistent notification + real-time notification
   await createNotification({
     recipientId: grievance.student_id,
     recipientRole: "student",
@@ -249,7 +245,6 @@ export const updateGrievanceStatus = async (
 
   const io = getIO();
 
-  // Existing event for updating grievance data in the frontend
   io.to(
     `user:student:${grievance.student_id}`,
   ).emit(
@@ -286,14 +281,12 @@ export const assignGrievance = async (
 
   grievance.assigned_staff_id = staffId;
 
-  // Automatically move OPEN grievance into progress
   if (grievance.status === "OPEN") {
     grievance.status = "IN_PROGRESS";
   }
 
   await grievance.save();
 
-  // Notify assigned staff
   await createNotification({
     recipientId: staffId,
     recipientRole: "staff",
@@ -305,7 +298,6 @@ export const assignGrievance = async (
     },
   });
 
-  // Notify grievance owner
   await createNotification({
     recipientId: grievance.student_id,
     recipientRole: "student",
@@ -320,7 +312,6 @@ export const assignGrievance = async (
 
   const io = getIO();
 
-  // Existing event: assigned staff's grievance UI updates
   io.to(
     `user:staff:${staffId}`,
   ).emit(
@@ -328,7 +319,6 @@ export const assignGrievance = async (
     grievance,
   );
 
-  // Existing event: student's grievance UI updates
   io.to(
     `user:student:${grievance.student_id}`,
   ).emit(
@@ -372,7 +362,6 @@ export const updateGrievancePriority = async (
 
   const io = getIO();
 
-  // Update grievance UI in real time
   io.to(
     `user:student:${grievance.student_id}`,
   ).emit(

@@ -1,7 +1,7 @@
 
 import dotenv from "dotenv";
 import http from "http";
-
+import logger from "./utils/logger.js"
 import app from "./app.js";
 import sequelize from "./config/sequelize.js";
 import { connectRedis } from "./config/redis.js";
@@ -19,15 +19,21 @@ const startServer = async () => {
   try {
     await sequelize.authenticate();
 
-    console.log("Database connected");
+    logger.info("Database connected");
 
     await connectRedis();
 
     server.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+     logger.info(
+      {port:PORT},
+      "Server Running"
+     )
     });
   } catch (error) {
-    console.error("Server startup failed:", error);
+   logger.error(
+    {err:error},
+    "failed to connect database"
+   )
   }
 };
 
