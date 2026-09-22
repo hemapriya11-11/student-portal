@@ -4,22 +4,30 @@ import { AppError } from "../utils/appError.js";
 
 export const validate = (schema, property) => {
   return (req, res, next) => {
-    const { error } = schema.validate(req[property], {
+    const { value, error } = schema.validate(req[property], {
       abortEarly: false,
+      stripUnknown: true,
     });
 
     if (error) {
       const validationErrors = error.details.map(
-        (detail) => detail.message
+        (detail) => detail.message,
       );
 
       return next(
         new AppError(
           MESSAGES.VALIDATION_FAILED,
           STATUS_CODES.BAD_REQUEST,
-          validationErrors
-        )
+          validationErrors,
+        ),
       );
+    }
+
+    // req.query cannot be reassigned in Express 5
+    if (property === "query") {
+      Object.assign(req.query, value);
+    } else {
+      req[property] = value;
     }
 
     next();

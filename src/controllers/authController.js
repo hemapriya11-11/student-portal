@@ -1,36 +1,25 @@
 import {
-  signupService,
   loginService,
+  changePasswordService,
   forgotPasswordService,
   resetPasswordService,
   refreshTokenService,
   logoutService,
 } from "../services/authService.js";
-import dotenv from "dotenv"
 
 import { STATUS_CODES } from "../constants/statusCodes.js";
 import { MESSAGES } from "../constants/messages.js";
-dotenv.config();
 
-
-export const signup = async (req, res, next) => {
-  try {
-    await signupService(req.body);
-
-    return res
-      .status(STATUS_CODES.CREATED)
-      .send(MESSAGES.USER_CREATED);
-
-  } catch (error) {
-    next(error);
-  }
-};
+import { RedisClient } from "redis";
 
 
 export const login = async (req, res, next) => {
   try {
-    const { accessToken, refreshToken } =
-      await loginService(req.body);
+    const {
+      accessToken,
+      refreshToken,
+      mustChangePassword,
+    } = await loginService(req.body);
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
@@ -44,13 +33,29 @@ export const login = async (req, res, next) => {
       .json({
         msg: MESSAGES.LOGIN_SUCCESS,
         token: accessToken,
+        mustChangePassword,
       });
-
   } catch (error) {
     next(error);
   }
 };
+ 
+export const changePassword = async (req, res, next) => {
+  try {
+    await changePasswordService({
+      userId: req.user.id,
+      role: req.user.role,
+      currentPassword: req.body.currentPassword,
+      newPassword: req.body.newPassword,
+    });
 
+    return res
+      .status(STATUS_CODES.OK)
+      .send("Password changed successfully");
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const forgotPassword = async (req, res, next) => {
   try {
@@ -58,8 +63,9 @@ export const forgotPassword = async (req, res, next) => {
 
     return res
       .status(STATUS_CODES.OK)
-      .send("Password reset link sent to your email");
-
+      .send(
+        "If an account exists with this email, a reset link will be sent.",
+      );
   } catch (error) {
     next(error);
   }
@@ -71,30 +77,35 @@ export const resetPassword = async (req, res, next) => {
     await resetPasswordService({
       password: req.body.password,
       userId: req.user.id,
+      role: req.user.role,
+      jti: req.user.jti,
     });
 
     return res
       .status(STATUS_CODES.OK)
       .send(MESSAGES.PASSWORD_RESET_SUCCESS);
-
   } catch (error) {
     next(error);
   }
 };
+
+
 export const refreshToken = async (req, res, next) => {
   try {
     const refreshToken = req.cookies.refreshToken;
 
-    const accessToken = await refreshTokenService(refreshToken);
+    const accessToken =
+      await refreshTokenService(refreshToken);
 
-    return res.status(STATUS_CODES.OK).json({
-      token: accessToken,
-    });
+    return res
+      .status(STATUS_CODES.OK)
+      .json({
+        token: accessToken,
+      });
   } catch (error) {
     next(error);
   }
 };
-
 
 
 export const logout = async (req, res, next) => {
@@ -110,7 +121,6 @@ export const logout = async (req, res, next) => {
     return res
       .status(STATUS_CODES.OK)
       .send("Logout successful");
-
   } catch (error) {
     next(error);
   }

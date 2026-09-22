@@ -1,8 +1,8 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../config/sequelize.js";
 
-const Student = sequelize.define(
-  "Student",
+const Staff = sequelize.define(
+  "Staff",
   {
     id: {
       type: DataTypes.INTEGER,
@@ -10,7 +10,7 @@ const Student = sequelize.define(
       primaryKey: true,
     },
 
-    student_id: {
+    staff_id: {
       type: DataTypes.STRING,
       allowNull: false,
       unique: true,
@@ -36,12 +36,18 @@ const Student = sequelize.define(
       type: DataTypes.DATEONLY,
       allowNull: false,
     },
-    admission_year: {
-      type: DataTypes.INTEGER,
+
+    department: {
+      type: DataTypes.STRING,
       allowNull: false,
     },
 
-    department: {
+    staff_type: {
+      type: DataTypes.ENUM("teaching", "non_teaching"),
+      allowNull: false,
+    },
+
+    designation: {
       type: DataTypes.STRING,
       allowNull: false,
     },
@@ -53,10 +59,10 @@ const Student = sequelize.define(
     },
   },
   {
-    tableName: "students",
+    tableName: "staff",
     timestamps: true,
     underscored: true,
   },
 );
 
-export default Student;
+export default Staff;
